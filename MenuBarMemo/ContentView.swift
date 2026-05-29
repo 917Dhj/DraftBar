@@ -1910,17 +1910,6 @@ struct FloatingNoteView: View {
             : 0.18
     }
 
-    private var statusText: String {
-        switch store.saveState {
-        case .saved:
-            return "Saved"
-        case .saving:
-            return "Saving..."
-        case .failed:
-            return "Save failed"
-        }
-    }
-
     var body: some View {
         ZStack {
             noteBackground
@@ -1948,31 +1937,21 @@ struct FloatingNoteView: View {
     }
 
     private var editorContent: some View {
-        VStack(spacing: 0) {
-            toolbar
+        ZStack(alignment: .topLeading) {
+            MarkdownTextView(text: $store.text, focusRequestID: focusController.requestID)
+                .padding(.horizontal, 8)
+                .padding(.bottom, 8)
 
-            ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.regularMaterial)
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(.white.opacity(0.24), lineWidth: 1)
-                    }
-
-                MarkdownTextView(text: $store.text, focusRequestID: focusController.requestID)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-                if store.text.isEmpty {
-                    Text("写点什么...")
-                        .font(.system(size: 15))
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, MarkdownTextView.placeholderTopPadding)
-                        .padding(.leading, MarkdownTextView.placeholderLeadingPadding)
-                        .allowsHitTesting(false)
-                }
+            if store.text.isEmpty {
+                Text("写点什么...")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, MarkdownTextView.placeholderTopPadding)
+                    .padding(.leading, MarkdownTextView.placeholderLeadingPadding)
+                    .allowsHitTesting(false)
             }
-            .padding(.horizontal, 10)
-            .padding(.bottom, 10)
+
+            floatingControls
         }
     }
 
@@ -1986,79 +1965,39 @@ struct FloatingNoteView: View {
             .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, y: 6)
     }
 
-    private var toolbar: some View {
-        ZStack {
+    private var floatingControls: some View {
+        ZStack(alignment: .top) {
             WindowDragHandle()
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
 
-            HStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
                 Button(action: closeNote) {
                     CloseGlassButton()
                 }
                 .buttonStyle(.plain)
                 .help("Close")
 
-                Text(statusText)
-                    .foregroundStyle(statusColor)
+                Spacer(minLength: 12)
 
-                if case let .failed(message) = store.saveState {
-                    Text(message)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                HStack(spacing: 10) {
+                    Text("\(store.text.count) 字")
+                        .fontWeight(.medium)
                         .foregroundStyle(.secondary)
+                        .monospacedDigit()
+
+                    Button(action: togglePin) {
+                        PinGlassButton(isPinned: windowState.isPinned)
+                    }
+                    .buttonStyle(.plain)
+                    .help(windowState.isPinned ? "Unpin from front" : "Pin on top")
                 }
-
-                Spacer(minLength: 8)
-
-                Text("\(store.text.count) 字")
-                    .foregroundStyle(.secondary)
-
-                Button(action: togglePin) {
-                    Image(systemName: windowState.isPinned ? "pin.fill" : "pin")
-                        .font(.system(size: 12, weight: .semibold))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(windowState.isPinned ? .primary : .secondary)
-                        .frame(width: 26, height: 26)
-                        .background {
-                            Circle()
-                                .fill(.ultraThinMaterial)
-                                .overlay {
-                                    Circle()
-                                        .stroke(.white.opacity(windowState.isPinned ? 0.34 : 0.18), lineWidth: 1)
-                                }
-                        }
-                }
-                .buttonStyle(.plain)
-                .help(windowState.isPinned ? "Unpin from front" : "Pin on top")
-
-                Menu {
-                    Button("Open Note File", action: openNoteFile)
-                    Divider()
-                    Button("Quit", action: quitApp)
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .imageScale(.medium)
-                        .frame(width: 26, height: 26)
-                }
-                .menuStyle(.button)
-                .buttonStyle(.plain)
-                .help("More")
             }
-            .padding(.horizontal, 12)
+            .padding(.top, 14)
+            .padding(.horizontal, 16)
         }
         .font(.caption)
-        .frame(height: 40)
-        .background(.ultraThinMaterial)
-    }
-
-    private var statusColor: Color {
-        switch store.saveState {
-        case .saved:
-            return .secondary
-        case .saving:
-            return .secondary
-        case .failed:
-            return .red
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -2087,10 +2026,33 @@ struct CloseGlassButton: View {
                 .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
 
             Image(systemName: "xmark")
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 12, weight: .bold))
                 .foregroundStyle(.secondary)
         }
-        .frame(width: 24, height: 24)
+        .frame(width: 30, height: 30)
+        .contentShape(Circle())
+    }
+}
+
+struct PinGlassButton: View {
+    let isPinned: Bool
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    Circle()
+                        .stroke(.white.opacity(isPinned ? 0.34 : 0.18), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.10), radius: 6, y: 2)
+
+            Image(systemName: isPinned ? "pin.fill" : "pin")
+                .font(.system(size: 12, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(isPinned ? .primary : .secondary)
+        }
+        .frame(width: 30, height: 30)
         .contentShape(Circle())
     }
 }
@@ -2110,9 +2072,9 @@ struct WindowDragHandle: NSViewRepresentable {
 }
 
 struct MarkdownTextView: NSViewRepresentable {
-    static let textContainerInset = NSSize(width: 12, height: 32)
-    static let placeholderTopPadding: CGFloat = 32
-    static let placeholderLeadingPadding: CGFloat = 18
+    static let textContainerInset = NSSize(width: 18, height: 58)
+    static let placeholderTopPadding: CGFloat = 58
+    static let placeholderLeadingPadding: CGFloat = 26
 
     @Binding var text: String
     let focusRequestID: Int
