@@ -184,6 +184,24 @@ func drawAppIcon(pixels: Int) -> NSBitmapImageRep {
         fillRounded(context, rect: CGRect(x: 414, y: 540, width: 220, height: 24), radius: 12, color: rgba(31, 41, 55, 0.19))
         fillRounded(context, rect: CGRect(x: 382, y: 636, width: 206, height: 24), radius: 12, color: rgba(31, 41, 55, 0.15))
 
+        let stroke = CGPath(
+            roundedRect: CGRect(x: 382, y: 698, width: 250, height: 28),
+            cornerWidth: 14,
+            cornerHeight: 14,
+            transform: nil
+        )
+        context.saveGState()
+        context.addPath(stroke)
+        context.clip()
+        drawGradient(
+            context,
+            colors: [rgba(59, 130, 246), rgba(79, 159, 122)],
+            locations: [0, 1],
+            start: CGPoint(x: 382, y: 712),
+            end: CGPoint(x: 632, y: 712)
+        )
+        context.restoreGState()
+
         drawRotated(context: context, center: CGPoint(x: 704, y: 612), degrees: -32) {
             let penBody = CGRect(x: -210, y: -34, width: 420, height: 68)
             context.setShadow(offset: CGSize(width: 0, height: 18), blur: 28, color: rgba(15, 23, 42, 0.20))
@@ -209,24 +227,6 @@ func drawAppIcon(pixels: Int) -> NSBitmapImageRep {
             context.setFillColor(rgba(31, 41, 55))
             context.fillPath()
         }
-
-        let stroke = CGPath(
-            roundedRect: CGRect(x: 382, y: 698, width: 250, height: 28),
-            cornerWidth: 14,
-            cornerHeight: 14,
-            transform: nil
-        )
-        context.saveGState()
-        context.addPath(stroke)
-        context.clip()
-        drawGradient(
-            context,
-            colors: [rgba(59, 130, 246), rgba(79, 159, 122)],
-            locations: [0, 1],
-            start: CGPoint(x: 382, y: 712),
-            end: CGPoint(x: 632, y: 712)
-        )
-        context.restoreGState()
 
         strokeRounded(context, rect: bounds.insetBy(dx: 5, dy: 5), radius: 221, color: rgba(255, 255, 255, 0.42), lineWidth: 10)
     }

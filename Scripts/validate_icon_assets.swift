@@ -64,6 +64,32 @@ func occurrenceCount(of needle: String, in haystack: String) -> Int {
     return count
 }
 
+func requireOrder(in text: String, first: String, second: String, failure: String) {
+    guard let firstRange = text.range(of: first),
+          let secondRange = text.range(of: second),
+          firstRange.lowerBound < secondRange.lowerBound else {
+        fail(failure)
+    }
+}
+
+func validateAppIconPenLayering() {
+    let appSVG = textFile("IconSource/MenuBarMemoAppIcon.svg")
+    requireOrder(
+        in: appSVG,
+        first: "<rect x=\"382\" y=\"698\" width=\"250\" height=\"28\" rx=\"14\" fill=\"url(#ink)\"/>",
+        second: "<g transform=\"translate(704 612) rotate(-32)\">",
+        failure: "App icon source must draw the colored writing stroke before the pen so the pen stays on top"
+    )
+
+    let generator = textFile("Scripts/generate_icon_assets.swift")
+    requireOrder(
+        in: generator,
+        first: "let stroke = CGPath(\n            roundedRect: CGRect(x: 382, y: 698, width: 250, height: 28)",
+        second: "drawRotated(context: context, center: CGPoint(x: 704, y: 612), degrees: -32)",
+        failure: "App icon generator must draw the colored writing stroke before the pen so generated PNGs match the source layering"
+    )
+}
+
 func validateStatusIconSource(_ relativePath: String, requiresChevron: Bool) {
     let svg = textFile(relativePath)
     guard !svg.contains("x=\"2.5\" y=\"1.4\" width=\"13\" height=\"2.8\" rx=\"1.4\" fill=\"#000\"") else {
@@ -290,7 +316,7 @@ validateStatusContents(
     baseName: "StatusBarIconVisible"
 )
 
-_ = requireFile("IconSource/MenuBarMemoAppIcon.svg")
+validateAppIconPenLayering()
 validateStatusIconSource("IconSource/MenuBarMemoStatusBarIconHidden.svg", requiresChevron: true)
 validateStatusIconSource("IconSource/MenuBarMemoStatusBarIconVisible.svg", requiresChevron: false)
 validateStatusIconAppWiring()
