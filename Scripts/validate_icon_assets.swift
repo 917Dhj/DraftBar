@@ -66,11 +66,21 @@ func occurrenceCount(of needle: String, in haystack: String) -> Int {
 
 func validateStatusIconSource(_ relativePath: String) {
     let svg = textFile(relativePath)
+    guard !svg.contains("x=\"2.5\" y=\"1.4\" width=\"13\" height=\"2.8\" rx=\"1.4\" fill=\"#000\"") else {
+        fail("StatusBarIcon source must not include a menu bar top strip")
+    }
     guard svg.contains("data-role=\"note-outline\"") else {
         fail("StatusBarIcon source must include a hollow note outline")
     }
     guard occurrenceCount(of: "data-role=\"note-line\"", in: svg) == 2 else {
         fail("StatusBarIcon source must include exactly two note lines")
+    }
+    guard occurrenceCount(of: "data-role=\"drag-chevron\"", in: svg) == 1 else {
+        fail("StatusBarIcon source must include exactly one down-drag chevron")
+    }
+    guard svg.contains("d=\"M7.1 14.4 L9 16 L10.9 14.4\"") &&
+            svg.contains("stroke-width=\"1.35\"") else {
+        fail("StatusBarIcon source must use the enlarged down-drag chevron")
     }
     guard !svg.contains("x=\"3.7\" y=\"5.2\" width=\"10.9\" height=\"10.4\" rx=\"2.2\" fill=\"#000\"") else {
         fail("StatusBarIcon source must not use a solid filled note body")
