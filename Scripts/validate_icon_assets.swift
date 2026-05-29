@@ -93,9 +93,6 @@ func imageEntryListDescription(_ entries: Set<ImageEntry>) -> [String] {
 }
 
 func integerValue(_ value: Any?) -> Int? {
-    if value is Bool {
-        return nil
-    }
     if let value = value as? NSNumber {
         if CFGetTypeID(value) == CFBooleanGetTypeID() {
             return nil
@@ -109,6 +106,9 @@ func integerValue(_ value: Any?) -> Int? {
     }
     if let value = value as? Int {
         return value
+    }
+    if value is Bool {
+        return nil
     }
     return nil
 }
