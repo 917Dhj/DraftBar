@@ -1,12 +1,12 @@
 {
   "images" : [
     {
-      "filename" : "StatusBarIcon.png",
+      "filename" : "StatusBarIconVisible.png",
       "idiom" : "mac",
       "scale" : "1x"
     },
     {
-      "filename" : "StatusBarIcon@2x.png",
+      "filename" : "StatusBarIconVisible@2x.png",
       "idiom" : "mac",
       "scale" : "2x"
     }

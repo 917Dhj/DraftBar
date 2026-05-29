@@ -64,26 +64,33 @@ func occurrenceCount(of needle: String, in haystack: String) -> Int {
     return count
 }
 
-func validateStatusIconSource(_ relativePath: String) {
+func validateStatusIconSource(_ relativePath: String, requiresChevron: Bool) {
     let svg = textFile(relativePath)
     guard !svg.contains("x=\"2.5\" y=\"1.4\" width=\"13\" height=\"2.8\" rx=\"1.4\" fill=\"#000\"") else {
-        fail("StatusBarIcon source must not include a menu bar top strip")
+        fail("Status icon source must not include a menu bar top strip: \(relativePath)")
     }
     guard svg.contains("data-role=\"note-outline\"") else {
-        fail("StatusBarIcon source must include a hollow note outline")
+        fail("Status icon source must include a hollow note outline: \(relativePath)")
     }
     guard occurrenceCount(of: "data-role=\"note-line\"", in: svg) == 2 else {
-        fail("StatusBarIcon source must include exactly two note lines")
+        fail("Status icon source must include exactly two note lines: \(relativePath)")
     }
-    guard occurrenceCount(of: "data-role=\"drag-chevron\"", in: svg) == 1 else {
-        fail("StatusBarIcon source must include exactly one down-drag chevron")
-    }
-    guard svg.contains("d=\"M7.1 14.4 L9 16 L10.9 14.4\"") &&
-            svg.contains("stroke-width=\"1.35\"") else {
-        fail("StatusBarIcon source must use the enlarged down-drag chevron")
+    let chevronCount = occurrenceCount(of: "data-role=\"drag-chevron\"", in: svg)
+    if requiresChevron {
+        guard chevronCount == 1 else {
+            fail("Hidden status icon source must include exactly one down-drag chevron")
+        }
+        guard svg.contains("d=\"M7.1 14.4 L9 16 L10.9 14.4\"") &&
+                svg.contains("stroke-width=\"1.35\"") else {
+            fail("Hidden status icon source must use the enlarged down-drag chevron")
+        }
+    } else {
+        guard chevronCount == 0 else {
+            fail("Visible status icon source must not include a down-drag chevron")
+        }
     }
     guard !svg.contains("x=\"3.7\" y=\"5.2\" width=\"10.9\" height=\"10.4\" rx=\"2.2\" fill=\"#000\"") else {
-        fail("StatusBarIcon source must not use a solid filled note body")
+        fail("Status icon source must not use a solid filled note body: \(relativePath)")
     }
 }
 
@@ -189,6 +196,22 @@ func validateInfo(_ json: [String: Any], catalogName: String) {
     }
 }
 
+func validateStatusContents(relativePath: String, catalogName: String, baseName: String) {
+    let json = jsonObject(relativePath)
+    guard let images = json["images"] as? [[String: Any]] else {
+        fail("\(catalogName) Contents.json has no images array")
+    }
+    validateInfo(json, catalogName: catalogName)
+    validateImageEntries(images, expected: [
+        ImageEntry(idiom: "mac", size: nil, scale: "1x", filename: "\(baseName).png"),
+        ImageEntry(idiom: "mac", size: nil, scale: "2x", filename: "\(baseName)@2x.png")
+    ], expectedKeys: ["idiom", "scale", "filename"], catalogName: catalogName)
+    let properties = json["properties"] as? [String: Any]
+    guard properties?["template-rendering-intent"] as? String == "template" else {
+        fail("\(catalogName).imageset must set template-rendering-intent to template")
+    }
+}
+
 let expectedPNGs = [
     ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-16x16@1x.png", width: 16, height: 16),
     ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-16x16@2x.png", width: 32, height: 32),
@@ -200,8 +223,10 @@ let expectedPNGs = [
     ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-256x256@2x.png", width: 512, height: 512),
     ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-512x512@1x.png", width: 512, height: 512),
     ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-512x512@2x.png", width: 1024, height: 1024),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIcon.imageset/StatusBarIcon.png", width: 18, height: 18),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIcon.imageset/StatusBarIcon@2x.png", width: 36, height: 36)
+    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconHidden.imageset/StatusBarIconHidden.png", width: 18, height: 18),
+    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconHidden.imageset/StatusBarIconHidden@2x.png", width: 36, height: 36),
+    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconVisible.imageset/StatusBarIconVisible.png", width: 18, height: 18),
+    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconVisible.imageset/StatusBarIconVisible@2x.png", width: 36, height: 36)
 ]
 
 for expected in expectedPNGs {
@@ -230,21 +255,19 @@ validateImageEntries(appImages, expected: [
     ImageEntry(idiom: "mac", size: "512x512", scale: "2x", filename: "AppIcon-512x512@2x.png")
 ], expectedKeys: ["idiom", "size", "scale", "filename"], catalogName: "AppIcon")
 
-let statusJSON = jsonObject("MenuBarMemo/Assets.xcassets/StatusBarIcon.imageset/Contents.json")
-guard let statusImages = statusJSON["images"] as? [[String: Any]] else {
-    fail("StatusBarIcon Contents.json has no images array")
-}
-validateInfo(statusJSON, catalogName: "StatusBarIcon")
-validateImageEntries(statusImages, expected: [
-    ImageEntry(idiom: "mac", size: nil, scale: "1x", filename: "StatusBarIcon.png"),
-    ImageEntry(idiom: "mac", size: nil, scale: "2x", filename: "StatusBarIcon@2x.png")
-], expectedKeys: ["idiom", "scale", "filename"], catalogName: "StatusBarIcon")
-let properties = statusJSON["properties"] as? [String: Any]
-guard properties?["template-rendering-intent"] as? String == "template" else {
-    fail("StatusBarIcon.imageset must set template-rendering-intent to template")
-}
+validateStatusContents(
+    relativePath: "MenuBarMemo/Assets.xcassets/StatusBarIconHidden.imageset/Contents.json",
+    catalogName: "StatusBarIconHidden",
+    baseName: "StatusBarIconHidden"
+)
+validateStatusContents(
+    relativePath: "MenuBarMemo/Assets.xcassets/StatusBarIconVisible.imageset/Contents.json",
+    catalogName: "StatusBarIconVisible",
+    baseName: "StatusBarIconVisible"
+)
 
 _ = requireFile("IconSource/MenuBarMemoAppIcon.svg")
-validateStatusIconSource("IconSource/MenuBarMemoStatusBarIcon.svg")
+validateStatusIconSource("IconSource/MenuBarMemoStatusBarIconHidden.svg", requiresChevron: true)
+validateStatusIconSource("IconSource/MenuBarMemoStatusBarIconVisible.svg", requiresChevron: false)
 
 print("Icon asset validation passed")

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
+  <rect data-role="note-outline" x="3.8" y="2.9" width="10.5" height="10" rx="2.1" fill="none" stroke="#000" stroke-width="1.55"/>
+  <rect data-role="note-line" x="6" y="6" width="4.7" height="1" rx="0.5" fill="#000"/>
+  <rect data-role="note-line" x="6" y="8.3" width="3.6" height="1" rx="0.5" fill="#000"/>
+  <g transform="translate(13.2 10.4) rotate(-34)">
+    <polygon points="-7.2,0 -5.4,-1.1 -5.4,1.1" fill="#000"/>
+    <rect x="-5.4" y="-1.25" width="10.8" height="2.5" rx="1.25" fill="#000"/>
+  </g>
+</svg>

@@ -14,7 +14,8 @@ let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let fileManager = FileManager.default
 let appRoot = root.appendingPathComponent("MenuBarMemo", isDirectory: true)
 let appIconDir = appRoot.appendingPathComponent("Assets.xcassets/AppIcon.appiconset", isDirectory: true)
-let statusIconDir = appRoot.appendingPathComponent("Assets.xcassets/StatusBarIcon.imageset", isDirectory: true)
+let statusHiddenIconDir = appRoot.appendingPathComponent("Assets.xcassets/StatusBarIconHidden.imageset", isDirectory: true)
+let statusVisibleIconDir = appRoot.appendingPathComponent("Assets.xcassets/StatusBarIconVisible.imageset", isDirectory: true)
 let sourceDir = root.appendingPathComponent("IconSource", isDirectory: true)
 
 func fail(_ message: String) -> Never {
@@ -231,24 +232,30 @@ func drawAppIcon(pixels: Int) -> NSBitmapImageRep {
     }
 }
 
-func drawStatusIcon(pixels: Int) -> NSBitmapImageRep {
+func drawStatusIcon(pixels: Int, showsDragChevron: Bool) -> NSBitmapImageRep {
     drawTopLeftBitmap(pixels: pixels, designSize: 18) { context in
         let ink = rgba(0, 0, 0)
+        let noteY: CGFloat = showsDragChevron ? 2.3 : 2.9
+        let firstLineY: CGFloat = showsDragChevron ? 5.4 : 6.0
+        let secondLineY: CGFloat = showsDragChevron ? 7.7 : 8.3
+        let penCenterY: CGFloat = showsDragChevron ? 9.8 : 10.4
 
-        strokeRounded(context, rect: CGRect(x: 3.8, y: 2.3, width: 10.5, height: 10.0), radius: 2.1, color: ink, lineWidth: 1.55)
-        fillRounded(context, rect: CGRect(x: 6.0, y: 5.4, width: 4.7, height: 1.0), radius: 0.5, color: ink)
-        fillRounded(context, rect: CGRect(x: 6.0, y: 7.7, width: 3.6, height: 1.0), radius: 0.5, color: ink)
+        strokeRounded(context, rect: CGRect(x: 3.8, y: noteY, width: 10.5, height: 10.0), radius: 2.1, color: ink, lineWidth: 1.55)
+        fillRounded(context, rect: CGRect(x: 6.0, y: firstLineY, width: 4.7, height: 1.0), radius: 0.5, color: ink)
+        fillRounded(context, rect: CGRect(x: 6.0, y: secondLineY, width: 3.6, height: 1.0), radius: 0.5, color: ink)
 
-        context.setStrokeColor(ink)
-        context.setLineWidth(1.35)
-        context.setLineCap(.round)
-        context.setLineJoin(.round)
-        context.move(to: CGPoint(x: 7.1, y: 14.4))
-        context.addLine(to: CGPoint(x: 9.0, y: 16.0))
-        context.addLine(to: CGPoint(x: 10.9, y: 14.4))
-        context.strokePath()
+        if showsDragChevron {
+            context.setStrokeColor(ink)
+            context.setLineWidth(1.35)
+            context.setLineCap(.round)
+            context.setLineJoin(.round)
+            context.move(to: CGPoint(x: 7.1, y: 14.4))
+            context.addLine(to: CGPoint(x: 9.0, y: 16.0))
+            context.addLine(to: CGPoint(x: 10.9, y: 14.4))
+            context.strokePath()
+        }
 
-        drawRotated(context: context, center: CGPoint(x: 13.2, y: 9.8), degrees: -34) {
+        drawRotated(context: context, center: CGPoint(x: 13.2, y: penCenterY), degrees: -34) {
             fillRounded(context, rect: CGRect(x: -5.4, y: -1.25, width: 10.8, height: 2.5), radius: 1.25, color: ink)
             let tip = CGMutablePath()
             tip.move(to: CGPoint(x: -7.2, y: 0))
@@ -305,7 +312,7 @@ let appSVG = """
 </svg>
 """
 
-let statusSVG = """
+let statusHiddenSVG = """
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
   <rect data-role="note-outline" x="3.8" y="2.3" width="10.5" height="10" rx="2.1" fill="none" stroke="#000" stroke-width="1.55"/>
   <rect data-role="note-line" x="6" y="5.4" width="4.7" height="1" rx="0.5" fill="#000"/>
@@ -318,18 +325,34 @@ let statusSVG = """
 </svg>
 """
 
+let statusVisibleSVG = """
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
+  <rect data-role="note-outline" x="3.8" y="2.9" width="10.5" height="10" rx="2.1" fill="none" stroke="#000" stroke-width="1.55"/>
+  <rect data-role="note-line" x="6" y="6" width="4.7" height="1" rx="0.5" fill="#000"/>
+  <rect data-role="note-line" x="6" y="8.3" width="3.6" height="1" rx="0.5" fill="#000"/>
+  <g transform="translate(13.2 10.4) rotate(-34)">
+    <polygon points="-7.2,0 -5.4,-1.1 -5.4,1.1" fill="#000"/>
+    <rect x="-5.4" y="-1.25" width="10.8" height="2.5" rx="1.25" fill="#000"/>
+  </g>
+</svg>
+"""
+
 try fileManager.createDirectory(at: appIconDir, withIntermediateDirectories: true)
-try fileManager.createDirectory(at: statusIconDir, withIntermediateDirectories: true)
+try fileManager.createDirectory(at: statusHiddenIconDir, withIntermediateDirectories: true)
+try fileManager.createDirectory(at: statusVisibleIconDir, withIntermediateDirectories: true)
 try fileManager.createDirectory(at: sourceDir, withIntermediateDirectories: true)
 
 try appSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoAppIcon.svg"), atomically: true, encoding: .utf8)
-try statusSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoStatusBarIcon.svg"), atomically: true, encoding: .utf8)
+try statusHiddenSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoStatusBarIconHidden.svg"), atomically: true, encoding: .utf8)
+try statusVisibleSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoStatusBarIconVisible.svg"), atomically: true, encoding: .utf8)
 
 for spec in appIconSpecs {
     try writePNG(drawAppIcon(pixels: spec.pixels), to: appIconDir.appendingPathComponent(spec.filename))
 }
-try writePNG(drawStatusIcon(pixels: 18), to: statusIconDir.appendingPathComponent("StatusBarIcon.png"))
-try writePNG(drawStatusIcon(pixels: 36), to: statusIconDir.appendingPathComponent("StatusBarIcon@2x.png"))
+try writePNG(drawStatusIcon(pixels: 18, showsDragChevron: true), to: statusHiddenIconDir.appendingPathComponent("StatusBarIconHidden.png"))
+try writePNG(drawStatusIcon(pixels: 36, showsDragChevron: true), to: statusHiddenIconDir.appendingPathComponent("StatusBarIconHidden@2x.png"))
+try writePNG(drawStatusIcon(pixels: 18, showsDragChevron: false), to: statusVisibleIconDir.appendingPathComponent("StatusBarIconVisible.png"))
+try writePNG(drawStatusIcon(pixels: 36, showsDragChevron: false), to: statusVisibleIconDir.appendingPathComponent("StatusBarIconVisible@2x.png"))
 
 let appIconContents: [String: Any] = [
     "images": appIconSpecs.map {
@@ -346,29 +369,32 @@ let appIconContents: [String: Any] = [
     ]
 ]
 
-let statusContents: [String: Any] = [
-    "images": [
-        [
-            "idiom": "mac",
-            "scale": "1x",
-            "filename": "StatusBarIcon.png"
+func statusContents(baseName: String) -> [String: Any] {
+    [
+        "images": [
+            [
+                "idiom": "mac",
+                "scale": "1x",
+                "filename": "\(baseName).png"
+            ],
+            [
+                "idiom": "mac",
+                "scale": "2x",
+                "filename": "\(baseName)@2x.png"
+            ]
         ],
-        [
-            "idiom": "mac",
-            "scale": "2x",
-            "filename": "StatusBarIcon@2x.png"
+        "info": [
+            "author": "xcode",
+            "version": 1
+        ],
+        "properties": [
+            "template-rendering-intent": "template"
         ]
-    ],
-    "info": [
-        "author": "xcode",
-        "version": 1
-    ],
-    "properties": [
-        "template-rendering-intent": "template"
     ]
-]
+}
 
 try writeJSON(appIconContents, to: appIconDir.appendingPathComponent("Contents.json"))
-try writeJSON(statusContents, to: statusIconDir.appendingPathComponent("Contents.json"))
+try writeJSON(statusContents(baseName: "StatusBarIconHidden"), to: statusHiddenIconDir.appendingPathComponent("Contents.json"))
+try writeJSON(statusContents(baseName: "StatusBarIconVisible"), to: statusVisibleIconDir.appendingPathComponent("Contents.json"))
 
 print("Generated MenuBarMemo icon assets")
