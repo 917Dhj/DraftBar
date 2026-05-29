@@ -1870,6 +1870,8 @@ final class MarkdownFormulaOverlayController {
 }
 
 struct FloatingNoteView: View {
+    private static let editorHorizontalPadding: CGFloat = 8
+
     @ObservedObject var store: MemoStore
     @ObservedObject var focusController: MemoEditorFocusController
     @ObservedObject var windowState: FloatingNoteWindowState
@@ -1939,7 +1941,7 @@ struct FloatingNoteView: View {
     private var editorContent: some View {
         ZStack(alignment: .topLeading) {
             MarkdownTextView(text: $store.text, focusRequestID: focusController.requestID)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, Self.editorHorizontalPadding)
                 .padding(.bottom, 8)
 
             if store.text.isEmpty {
@@ -1947,7 +1949,7 @@ struct FloatingNoteView: View {
                     .font(.system(size: 15))
                     .foregroundStyle(.tertiary)
                     .padding(.top, MarkdownTextView.placeholderTopPadding)
-                    .padding(.leading, MarkdownTextView.placeholderLeadingPadding)
+                    .padding(.leading, Self.editorHorizontalPadding + MarkdownTextView.placeholderLeadingPadding)
                     .allowsHitTesting(false)
             }
 
@@ -2073,8 +2075,9 @@ struct WindowDragHandle: NSViewRepresentable {
 
 struct MarkdownTextView: NSViewRepresentable {
     static let textContainerInset = NSSize(width: 18, height: 58)
+    static let lineFragmentPadding: CGFloat = 5
     static let placeholderTopPadding: CGFloat = 58
-    static let placeholderLeadingPadding: CGFloat = 26
+    static let placeholderLeadingPadding: CGFloat = textContainerInset.width + lineFragmentPadding
 
     @Binding var text: String
     let focusRequestID: Int
@@ -2098,6 +2101,7 @@ struct MarkdownTextView: NSViewRepresentable {
             height: CGFloat.greatestFiniteMagnitude
         ))
         textContainer.widthTracksTextView = true
+        textContainer.lineFragmentPadding = MarkdownTextView.lineFragmentPadding
         textStorage.addLayoutManager(layoutManager)
         layoutManager.addTextContainer(textContainer)
 
