@@ -15,7 +15,17 @@ let fileManager = FileManager.default
 let appRoot = root.appendingPathComponent("MenuBarMemo", isDirectory: true)
 let appIconDir = appRoot.appendingPathComponent("Assets.xcassets/AppIcon.appiconset", isDirectory: true)
 let statusIconDir = appRoot.appendingPathComponent("Assets.xcassets/StatusBarIcon.imageset", isDirectory: true)
-let sourceDir = appRoot.appendingPathComponent("IconSource", isDirectory: true)
+let sourceDir = root.appendingPathComponent("IconSource", isDirectory: true)
+
+func fail(_ message: String) -> Never {
+    FileHandle.standardError.write(Data((message + "\n").utf8))
+    exit(1)
+}
+
+guard fileManager.fileExists(atPath: root.appendingPathComponent("MenuBarMemo.xcodeproj").path),
+      fileManager.fileExists(atPath: appRoot.appendingPathComponent("Assets.xcassets").path) else {
+    fail("Run Scripts/generate_icon_assets.swift from the repository root containing MenuBarMemo.xcodeproj and MenuBarMemo/Assets.xcassets.")
+}
 
 let appIconSpecs = [
     AppIconSpec(pointSize: "16x16", scale: "1x", pixels: 16, filename: "AppIcon-16x16@1x.png"),

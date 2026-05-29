@@ -202,7 +202,7 @@ guard properties?["template-rendering-intent"] as? String == "template" else {
     fail("StatusBarIcon.imageset must set template-rendering-intent to template")
 }
 
-_ = requireFile("MenuBarMemo/IconSource/MenuBarMemoAppIcon.svg")
-_ = requireFile("MenuBarMemo/IconSource/MenuBarMemoStatusBarIcon.svg")
+_ = requireFile("IconSource/MenuBarMemoAppIcon.svg")
+_ = requireFile("IconSource/MenuBarMemoStatusBarIcon.svg")
 
 print("Icon asset validation passed")
