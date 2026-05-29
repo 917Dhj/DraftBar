@@ -8,8 +8,11 @@
 import SwiftUI
 import AppKit
 import QuartzCore
+import Darwin
 
+#if !MENU_BAR_MEMO_TESTING
 @main
+#endif
 struct MenuBarMemoApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
@@ -35,10 +38,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var dragAnchorFrame: NSRect?
     private var dragPanelSize: NSSize?
     private var isClosingPanel = false
-    private var ignoreNextStatusClick = false
+    private var statusPointerTracker = StatusItemPointerTracker()
 
     private let defaultPanelSize = NSSize(width: 420, height: 520)
     private let normalMinimumPanelSize = NSSize(width: 320, height: 260)
+    private let statusDebugEnabled = ProcessInfo.processInfo.environment["MENUBARMEMO_DEBUG_STATUS"] == "1"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -60,20 +64,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         button.image = image
         button.toolTip = "MenuBarMemo"
         button.target = self
-        button.action = #selector(statusItemClicked(_:))
-        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
-
-        let dragRecognizer = NSPanGestureRecognizer(target: self, action: #selector(statusItemDragged(_:)))
-        button.addGestureRecognizer(dragRecognizer)
+        button.action = #selector(statusItemPressed(_:))
+        button.sendAction(on: [.leftMouseDown, .rightMouseDown])
+        DispatchQueue.main.async { [weak self, weak button] in
+            guard let self else { return }
+            self.debugStatusLog("buttonBounds=\(button?.bounds ?? .zero) frame=\(self.statusButtonScreenFrameDescription())")
+        }
     }
 
-    @objc private func statusItemClicked(_ sender: NSStatusBarButton) {
-        guard !ignoreNextStatusClick else { return }
+    @objc private func statusItemPressed(_ sender: NSStatusBarButton) {
+        guard let event = NSApp.currentEvent else { return }
+        debugStatusLog("statusItemPressed type=\(event.type.rawValue) screenPoint=\(screenPoint(for: event))")
 
-        if NSApp.currentEvent?.type == .rightMouseUp {
-            showStatusMenu(from: sender)
-        } else {
-            showFloatingNote(animatedFromStatusItem: true)
+        switch event.type {
+        case .rightMouseDown:
+            statusPointerTracker.reset()
+            showStatusMenu()
+        case .leftMouseDown:
+            trackStatusItemLeftMouse(from: event, in: sender)
+        default:
+            break
         }
     }
 
@@ -89,48 +99,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func quitApp() {
         store.saveNow(force: true)
         NSApp.terminate(nil)
-    }
-
-    @objc private func statusItemDragged(_ recognizer: NSPanGestureRecognizer) {
-        switch recognizer.state {
-        case .began:
-            ignoreNextStatusClick = true
-            dragAnchorFrame = statusButtonScreenFrame()?.insetBy(dx: -6, dy: -6)
-            dragPanelSize = lastFloatingFrame?.size ?? defaultPanelSize
-            let panel = ensureNotePanel()
-            if !panel.isVisible {
-                panel.minSize = FloatingNoteLayout.dragSeedSize
-                updateDragVisualState(for: NSEvent.mouseLocation, isDragging: true)
-            }
-            showFloatingNoteForDrag(at: NSEvent.mouseLocation)
-        case .changed:
-            guard let panel = notePanel else { return }
-            let panelSize = dragPanelSize ?? panel.frame.size
-            panel.setFrame(dragPresentationFrame(for: NSEvent.mouseLocation, panelSize: panelSize), display: true)
-            panel.alphaValue = dragAlpha(for: NSEvent.mouseLocation)
-            updateDragVisualState(for: NSEvent.mouseLocation, isDragging: true)
-        case .ended, .cancelled, .failed:
-            if let panel = notePanel {
-                let panelSize = dragPanelSize ?? panel.frame.size
-                let finalFrame = dragFrame(for: NSEvent.mouseLocation, currentSize: panelSize)
-                visualState.dragProgress = 1
-                animate(panel: panel, to: finalFrame, alpha: 1, duration: 0.12) { [weak self, weak panel] in
-                    guard let self, let panel else { return }
-                    panel.minSize = self.normalMinimumPanelSize
-                    self.visualState.isDraggingFromStatusItem = false
-                }
-                lastFloatingFrame = finalFrame
-            }
-            dragAnchorFrame = nil
-            dragPanelSize = nil
-            NSApp.activate(ignoringOtherApps: true)
-            focusController.requestFocus()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-                self?.ignoreNextStatusClick = false
-            }
-        default:
-            break
-        }
     }
 
     private func showFloatingNote(animatedFromStatusItem: Bool) {
@@ -151,6 +119,114 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             panel.makeKeyAndOrderFront(nil)
         }
 
+        NSApp.activate(ignoringOtherApps: true)
+        focusController.requestFocus()
+        debugStatusLog("showFloatingNote visible=\(panel.isVisible) frame=\(panel.frame)")
+    }
+
+    private func trackStatusItemLeftMouse(from initialEvent: NSEvent, in button: NSStatusBarButton) {
+        button.highlight(true)
+        performStatusActions(
+            statusPointerTracker.handle(.leftDown(screenPoint(for: initialEvent))),
+            at: screenPoint(for: initialEvent)
+        )
+
+        guard let window = button.window else {
+            button.highlight(false)
+            performStatusActions(statusPointerTracker.handle(.leftUp(NSEvent.mouseLocation)), at: NSEvent.mouseLocation)
+            return
+        }
+
+        window.trackEvents(
+            matching: [.leftMouseDragged, .leftMouseUp],
+            timeout: NSEvent.foreverDuration,
+            mode: .eventTracking
+        ) { [weak self, weak button] event, stop in
+            guard let self, let event else { return }
+            let screenPoint = self.screenPoint(for: event)
+
+            switch event.type {
+            case .leftMouseDragged:
+                self.performStatusActions(
+                    self.statusPointerTracker.handle(.leftDragged(screenPoint)),
+                    at: screenPoint
+                )
+            case .leftMouseUp:
+                button?.highlight(false)
+                self.performStatusActions(
+                    self.statusPointerTracker.handle(.leftUp(screenPoint)),
+                    at: screenPoint
+                )
+                stop.pointee = true
+            default:
+                break
+            }
+        }
+    }
+
+    private func performStatusActions(_ actions: [StatusItemPointerTracker.Action], at screenPoint: NSPoint) {
+        for action in actions {
+            switch action {
+            case .showMenu:
+                showStatusMenu()
+            case .showNote:
+                showFloatingNote(animatedFromStatusItem: true)
+            case .beginDrag:
+                beginStatusItemDrag(at: screenPoint)
+            case .updateDrag:
+                updateStatusItemDrag(at: screenPoint)
+            case .endDrag:
+                endStatusItemDrag(at: screenPoint)
+            }
+        }
+    }
+
+    private func screenPoint(for event: NSEvent) -> NSPoint {
+        guard let window = event.window else {
+            return NSEvent.mouseLocation
+        }
+
+        let rect = NSRect(origin: event.locationInWindow, size: .zero)
+        return window.convertToScreen(rect).origin
+    }
+
+    private func beginStatusItemDrag(at screenPoint: NSPoint) {
+        debugStatusLog("beginDrag at=\(screenPoint)")
+        dragAnchorFrame = statusButtonScreenFrame()?.insetBy(dx: -6, dy: -6)
+        dragPanelSize = lastFloatingFrame?.size ?? defaultPanelSize
+        let panel = ensureNotePanel()
+        if !panel.isVisible {
+            panel.minSize = FloatingNoteLayout.dragSeedSize
+            updateDragVisualState(for: screenPoint, isDragging: true)
+        }
+        showFloatingNoteForDrag(at: screenPoint)
+    }
+
+    private func updateStatusItemDrag(at screenPoint: NSPoint) {
+        debugStatusLog("updateDrag at=\(screenPoint)")
+        guard let panel = notePanel else { return }
+        let panelSize = dragPanelSize ?? panel.frame.size
+        panel.setFrame(dragPresentationFrame(for: screenPoint, panelSize: panelSize), display: true)
+        panel.alphaValue = dragAlpha(for: screenPoint)
+        updateDragVisualState(for: screenPoint, isDragging: true)
+    }
+
+    private func endStatusItemDrag(at screenPoint: NSPoint) {
+        debugStatusLog("endDrag at=\(screenPoint)")
+        if let panel = notePanel {
+            let panelSize = dragPanelSize ?? panel.frame.size
+            let finalFrame = dragFrame(for: screenPoint, currentSize: panelSize)
+            visualState.dragProgress = 1
+            animate(panel: panel, to: finalFrame, alpha: 1, duration: 0.12) { [weak self, weak panel] in
+                guard let self, let panel else { return }
+                panel.minSize = self.normalMinimumPanelSize
+                self.visualState.isDraggingFromStatusItem = false
+            }
+            lastFloatingFrame = finalFrame
+        }
+
+        dragAnchorFrame = nil
+        dragPanelSize = nil
         NSApp.activate(ignoringOtherApps: true)
         focusController.requestFocus()
     }
@@ -359,7 +435,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         lastFloatingFrame = panel.frame
     }
 
-    private func showStatusMenu(from sender: NSStatusBarButton) {
+    private func showStatusMenu() {
+        guard let button = statusItem?.button else { return }
+        debugStatusLog("showStatusMenu frame=\(statusButtonScreenFrameDescription())")
+
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: notePanel?.isVisible == true ? "Focus Note" : "Show Note", action: #selector(showNoteFromMenu), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Open Note File", action: #selector(openNoteFile), keyEquivalent: ""))
@@ -367,9 +446,90 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q"))
         menu.items.forEach { $0.target = self }
 
-        statusItem?.menu = menu
-        sender.performClick(nil)
-        statusItem?.menu = nil
+        let menuPoint = NSPoint(x: button.bounds.minX, y: button.bounds.minY - 4)
+        menu.popUp(positioning: nil, at: menuPoint, in: button)
+    }
+
+    private func statusButtonScreenFrameDescription() -> String {
+        guard let frame = statusButtonScreenFrame() else { return "nil" }
+        let cgPoint = cgEventPoint(forScreenPoint: frame.midPoint)
+        return "\(frame) cgMid=\(cgPoint)"
+    }
+
+    private func cgEventPoint(forScreenPoint point: NSPoint) -> CGPoint {
+        let screen = screen(containing: point)
+        return CGPoint(x: point.x, y: screen.frame.maxY - point.y)
+    }
+
+    private func debugStatusLog(_ message: String) {
+        guard statusDebugEnabled else { return }
+        print("MenuBarMemoStatusDebug: \(message)")
+        fflush(stdout)
+    }
+}
+
+struct StatusItemPointerTracker {
+    enum PointerEvent {
+        case leftDown(NSPoint)
+        case leftDragged(NSPoint)
+        case leftUp(NSPoint)
+        case rightDown
+    }
+
+    enum Action: Equatable {
+        case showMenu
+        case showNote
+        case beginDrag
+        case updateDrag
+        case endDrag
+    }
+
+    private let dragThreshold: CGFloat
+    private var leftDownPoint: NSPoint?
+    private var isDragging = false
+
+    var isTracking: Bool {
+        leftDownPoint != nil
+    }
+
+    init(dragThreshold: CGFloat = 4) {
+        self.dragThreshold = dragThreshold
+    }
+
+    mutating func handle(_ event: PointerEvent) -> [Action] {
+        switch event {
+        case .rightDown:
+            reset()
+            return [.showMenu]
+        case let .leftDown(point):
+            leftDownPoint = point
+            isDragging = false
+            return []
+        case let .leftDragged(point):
+            guard let leftDownPoint else { return [] }
+            if isDragging {
+                return [.updateDrag]
+            }
+            guard distance(from: leftDownPoint, to: point) >= dragThreshold else {
+                return []
+            }
+            isDragging = true
+            return [.beginDrag, .updateDrag]
+        case .leftUp:
+            defer { reset() }
+            return isDragging ? [.endDrag] : [.showNote]
+        }
+    }
+
+    mutating func reset() {
+        leftDownPoint = nil
+        isDragging = false
+    }
+
+    private func distance(from start: NSPoint, to end: NSPoint) -> CGFloat {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        return sqrt(dx * dx + dy * dy)
     }
 }
 

@@ -8,6 +8,9 @@
 import SwiftUI
 import AppKit
 import Combine
+#if canImport(SwiftMath)
+import SwiftMath
+#endif
 
 final class MemoEditorFocusController: ObservableObject {
     @Published private(set) var requestID = 0
@@ -213,6 +216,7 @@ enum MarkdownStyleKind: Equatable {
     case blockBackground
     case codeBlock
     case formulaBlock
+    case blockFenceDelimiter
     case linkText
     case imageAlt
     case blockquoteLine
@@ -229,6 +233,434 @@ enum MarkdownStyleKind: Equatable {
 struct MarkdownStyleSpan: Equatable {
     let kind: MarkdownStyleKind
     let range: NSRange
+}
+
+struct MarkdownFormulaRenderSpan: Equatable {
+    let sourceRange: NSRange
+    let layoutRange: NSRange
+    let latex: String
+    let isBlock: Bool
+}
+
+struct MarkdownEditResult: Equatable {
+    let text: String
+    let selectedRange: NSRange
+}
+
+enum MarkdownCodeBlockEditing {
+    static func expandOpeningFence(
+        in text: String,
+        affectedRange: NSRange,
+        replacementString: String
+    ) -> MarkdownEditResult? {
+        guard replacementString == "`" || replacementString == "```" else { return nil }
+
+        let nsText = text as NSString
+        let location = min(max(affectedRange.location, 0), nsText.length)
+        let lineRange = nsText.lineRange(for: NSRange(location: location, length: 0))
+        let lineContentRange = contentRangeExcludingLineEnding(from: lineRange, in: nsText)
+        guard affectedRange.location >= lineContentRange.location,
+              NSMaxRange(affectedRange) <= NSMaxRange(lineContentRange) else {
+            return nil
+        }
+
+        let lineText = NSMutableString(string: nsText.substring(with: lineContentRange))
+        lineText.replaceCharacters(
+            in: NSRange(location: affectedRange.location - lineContentRange.location, length: affectedRange.length),
+            with: replacementString
+        )
+        guard lineText as String == "```" else { return nil }
+
+        let block = "```\n\n```"
+        let expandedText = nsText.replacingCharacters(in: lineContentRange, with: block)
+        return MarkdownEditResult(
+            text: expandedText,
+            selectedRange: NSRange(location: lineContentRange.location + 4, length: 0)
+        )
+    }
+
+    static func expandOpeningFormulaFence(
+        in text: String,
+        affectedRange: NSRange,
+        replacementString: String
+    ) -> MarkdownEditResult? {
+        guard replacementString == "$" || replacementString == "$$" else { return nil }
+
+        let nsText = text as NSString
+        let location = min(max(affectedRange.location, 0), nsText.length)
+        let lineRange = nsText.lineRange(for: NSRange(location: location, length: 0))
+        let lineContentRange = contentRangeExcludingLineEnding(from: lineRange, in: nsText)
+        guard affectedRange.location >= lineContentRange.location,
+              NSMaxRange(affectedRange) <= NSMaxRange(lineContentRange) else {
+            return nil
+        }
+
+        let lineText = NSMutableString(string: nsText.substring(with: lineContentRange))
+        lineText.replaceCharacters(
+            in: NSRange(location: affectedRange.location - lineContentRange.location, length: affectedRange.length),
+            with: replacementString
+        )
+        guard lineText as String == "$$" else { return nil }
+
+        let block = "$$\n\n$$"
+        let expandedText = nsText.replacingCharacters(in: lineContentRange, with: block)
+        return MarkdownEditResult(
+            text: expandedText,
+            selectedRange: NSRange(location: lineContentRange.location + 3, length: 0)
+        )
+    }
+
+    static func exitCodeBlock(in text: String, selectedRange: NSRange) -> MarkdownEditResult? {
+        let nsText = text as NSString
+        let location = min(max(selectedRange.location, 0), nsText.length)
+        guard let blockRange = fencedCodeBlockRange(containing: location, in: nsText) else {
+            return nil
+        }
+
+        let blockEnd = NSMaxRange(blockRange)
+        if blockHasClosingFence(in: nsText, blockRange: blockRange) {
+            if blockEnd < nsText.length,
+               CharacterSet.newlines.contains(UnicodeScalar(nsText.character(at: blockEnd)) ?? "\0") {
+                return MarkdownEditResult(text: text, selectedRange: NSRange(location: blockEnd + 1, length: 0))
+            }
+
+            let newText = nsText.replacingCharacters(in: NSRange(location: blockEnd, length: 0), with: "\n")
+            return MarkdownEditResult(text: newText, selectedRange: NSRange(location: blockEnd + 1, length: 0))
+        }
+
+        let closingText = "\n```\n"
+        let newText = nsText.replacingCharacters(in: NSRange(location: blockEnd, length: 0), with: closingText)
+        return MarkdownEditResult(
+            text: newText,
+            selectedRange: NSRange(location: blockEnd + (closingText as NSString).length, length: 0)
+        )
+    }
+
+    static func exitCodeBlockOnBlankCodeLine(in text: String, selectedRange: NSRange) -> MarkdownEditResult? {
+        guard selectedRange.length == 0 else { return nil }
+
+        let nsText = text as NSString
+        let location = min(max(selectedRange.location, 0), nsText.length)
+        guard let blockRange = fencedCodeBlockRange(containing: location, in: nsText),
+              let closingFenceRange = closingFenceLineRange(in: nsText, blockRange: blockRange) else {
+            return nil
+        }
+
+        let currentLineFullRange = nsText.lineRange(for: NSRange(location: location, length: 0))
+        let currentLineContentRange = contentRangeExcludingLineEnding(from: currentLineFullRange, in: nsText)
+        guard currentLineContentRange.location > blockRange.location,
+              currentLineContentRange.location < closingFenceRange.location else {
+            return nil
+        }
+
+        let currentLine = nsText.substring(with: currentLineContentRange)
+        guard currentLine.trimmingCharacters(in: .whitespaces).isEmpty,
+              hasEarlierContentLine(in: nsText, blockRange: blockRange, before: currentLineContentRange.location) else {
+            return nil
+        }
+
+        let textAfterRemovingBlankLine = nsText.replacingCharacters(in: currentLineFullRange, with: "")
+        let removedLength = currentLineFullRange.length
+        let shiftedClosingFenceLocation = closingFenceRange.location
+            - (currentLineFullRange.location < closingFenceRange.location ? removedLength : 0)
+        let result = textAfterRemovingBlankLine as NSString
+        let closingLineFullRange = result.lineRange(
+            for: NSRange(location: min(shiftedClosingFenceLocation, result.length), length: 0)
+        )
+        let closingLineContentRange = contentRangeExcludingLineEnding(from: closingLineFullRange, in: result)
+
+        if NSMaxRange(closingLineFullRange) > NSMaxRange(closingLineContentRange) {
+            return MarkdownEditResult(
+                text: textAfterRemovingBlankLine,
+                selectedRange: NSRange(location: NSMaxRange(closingLineFullRange), length: 0)
+            )
+        }
+
+        let finalText = result.replacingCharacters(in: NSRange(location: NSMaxRange(closingLineFullRange), length: 0), with: "\n")
+        return MarkdownEditResult(
+            text: finalText,
+            selectedRange: NSRange(location: NSMaxRange(closingLineFullRange) + 1, length: 0)
+        )
+    }
+
+    static func exitFormulaBlockOnBlankFormulaLine(in text: String, selectedRange: NSRange) -> MarkdownEditResult? {
+        guard selectedRange.length == 0 else { return nil }
+
+        let nsText = text as NSString
+        let location = min(max(selectedRange.location, 0), nsText.length)
+        guard let blockRange = fencedFormulaBlockRange(containing: location, in: nsText),
+              let closingFenceRange = closingFormulaFenceLineRange(in: nsText, blockRange: blockRange) else {
+            return nil
+        }
+
+        let currentLineFullRange = nsText.lineRange(for: NSRange(location: location, length: 0))
+        let currentLineContentRange = contentRangeExcludingLineEnding(from: currentLineFullRange, in: nsText)
+        guard currentLineContentRange.location > blockRange.location,
+              currentLineContentRange.location < closingFenceRange.location else {
+            return nil
+        }
+
+        let currentLine = nsText.substring(with: currentLineContentRange)
+        guard currentLine.trimmingCharacters(in: .whitespaces).isEmpty,
+              hasEarlierFormulaContentLine(in: nsText, blockRange: blockRange, before: currentLineContentRange.location) else {
+            return nil
+        }
+
+        let textAfterRemovingBlankLine = nsText.replacingCharacters(in: currentLineFullRange, with: "")
+        let removedLength = currentLineFullRange.length
+        let shiftedClosingFenceLocation = closingFenceRange.location
+            - (currentLineFullRange.location < closingFenceRange.location ? removedLength : 0)
+        let result = textAfterRemovingBlankLine as NSString
+        let closingLineFullRange = result.lineRange(
+            for: NSRange(location: min(shiftedClosingFenceLocation, result.length), length: 0)
+        )
+        let closingLineContentRange = contentRangeExcludingLineEnding(from: closingLineFullRange, in: result)
+
+        if NSMaxRange(closingLineFullRange) > NSMaxRange(closingLineContentRange) {
+            return MarkdownEditResult(
+                text: textAfterRemovingBlankLine,
+                selectedRange: NSRange(location: NSMaxRange(closingLineFullRange), length: 0)
+            )
+        }
+
+        let finalText = result.replacingCharacters(in: NSRange(location: NSMaxRange(closingLineFullRange), length: 0), with: "\n")
+        return MarkdownEditResult(
+            text: finalText,
+            selectedRange: NSRange(location: NSMaxRange(closingLineFullRange) + 1, length: 0)
+        )
+    }
+
+    static func collapseEmptyCodeBlockOnBackspace(in text: String, selectedRange: NSRange) -> MarkdownEditResult? {
+        guard selectedRange.length == 0 else { return nil }
+
+        let nsText = text as NSString
+        let location = min(max(selectedRange.location, 0), nsText.length)
+        guard let blockRange = fencedCodeBlockRange(containing: location, in: nsText),
+              let closingFenceRange = closingFenceLineRange(in: nsText, blockRange: blockRange),
+              isEmptyCodeBlock(in: nsText, blockRange: blockRange, closingFenceRange: closingFenceRange),
+              isInsideEmptyCodeContentLine(in: nsText, location: location, blockRange: blockRange, closingFenceRange: closingFenceRange) else {
+            return nil
+        }
+
+        let removalRange = blockRemovalRange(in: nsText, blockRange: blockRange)
+        let newText = nsText.replacingCharacters(in: removalRange, with: "")
+        return MarkdownEditResult(
+            text: newText,
+            selectedRange: NSRange(location: blockRange.location, length: 0)
+        )
+    }
+
+    static func collapseEmptyFormulaBlockOnBackspace(in text: String, selectedRange: NSRange) -> MarkdownEditResult? {
+        guard selectedRange.length == 0 else { return nil }
+
+        let nsText = text as NSString
+        let location = min(max(selectedRange.location, 0), nsText.length)
+        guard let blockRange = fencedFormulaBlockRange(containing: location, in: nsText),
+              let closingFenceRange = closingFormulaFenceLineRange(in: nsText, blockRange: blockRange),
+              isEmptyFormulaBlock(in: nsText, blockRange: blockRange, closingFenceRange: closingFenceRange),
+              isInsideEmptyFormulaContentLine(in: nsText, location: location, blockRange: blockRange, closingFenceRange: closingFenceRange) else {
+            return nil
+        }
+
+        let removalRange = blockRemovalRange(in: nsText, blockRange: blockRange)
+        let newText = nsText.replacingCharacters(in: removalRange, with: "")
+        return MarkdownEditResult(
+            text: newText,
+            selectedRange: NSRange(location: blockRange.location, length: 0)
+        )
+    }
+
+    private static func blockHasClosingFence(in text: NSString, blockRange: NSRange) -> Bool {
+        closingFenceLineRange(in: text, blockRange: blockRange) != nil
+    }
+
+    private static func closingFenceLineRange(in text: NSString, blockRange: NSRange) -> NSRange? {
+        var closingLineRange: NSRange?
+        for lineRange in MarkdownStyleResolver.lineRanges(in: text) where blockRangeContains(lineRange, blockRange: blockRange) {
+            guard lineRange.location > blockRange.location,
+                  isCodeFenceLine(text.substring(with: lineRange)) else {
+                continue
+            }
+            closingLineRange = lineRange
+        }
+        return closingLineRange
+    }
+
+    private static func closingFormulaFenceLineRange(in text: NSString, blockRange: NSRange) -> NSRange? {
+        var closingLineRange: NSRange?
+        for lineRange in MarkdownStyleResolver.lineRanges(in: text) where blockRangeContains(lineRange, blockRange: blockRange) {
+            guard lineRange.location > blockRange.location,
+                  isFormulaFenceLine(text.substring(with: lineRange)) else {
+                continue
+            }
+            closingLineRange = lineRange
+        }
+        return closingLineRange
+    }
+
+    private static func hasEarlierContentLine(in text: NSString, blockRange: NSRange, before location: Int) -> Bool {
+        for lineRange in MarkdownStyleResolver.lineRanges(in: text) where blockRangeContains(lineRange, blockRange: blockRange) {
+            guard lineRange.location > blockRange.location,
+                  lineRange.location < location,
+                  !isCodeFenceLine(text.substring(with: lineRange)) else {
+                continue
+            }
+            return true
+        }
+        return false
+    }
+
+    private static func hasEarlierFormulaContentLine(in text: NSString, blockRange: NSRange, before location: Int) -> Bool {
+        for lineRange in MarkdownStyleResolver.lineRanges(in: text) where blockRangeContains(lineRange, blockRange: blockRange) {
+            guard lineRange.location > blockRange.location,
+                  lineRange.location < location,
+                  !isFormulaFenceLine(text.substring(with: lineRange)) else {
+                continue
+            }
+            return true
+        }
+        return false
+    }
+
+    private static func isEmptyCodeBlock(in text: NSString, blockRange: NSRange, closingFenceRange: NSRange) -> Bool {
+        for lineRange in MarkdownStyleResolver.lineRanges(in: text) where blockRangeContains(lineRange, blockRange: blockRange) {
+            guard lineRange.location > blockRange.location,
+                  lineRange.location < closingFenceRange.location,
+                  !isCodeFenceLine(text.substring(with: lineRange)) else {
+                continue
+            }
+            if !text.substring(with: lineRange).trimmingCharacters(in: .whitespaces).isEmpty {
+                return false
+            }
+        }
+        return true
+    }
+
+    private static func isEmptyFormulaBlock(in text: NSString, blockRange: NSRange, closingFenceRange: NSRange) -> Bool {
+        for lineRange in MarkdownStyleResolver.lineRanges(in: text) where blockRangeContains(lineRange, blockRange: blockRange) {
+            guard lineRange.location > blockRange.location,
+                  lineRange.location < closingFenceRange.location,
+                  !isFormulaFenceLine(text.substring(with: lineRange)) else {
+                continue
+            }
+            if !text.substring(with: lineRange).trimmingCharacters(in: .whitespaces).isEmpty {
+                return false
+            }
+        }
+        return true
+    }
+
+    private static func isInsideEmptyCodeContentLine(
+        in text: NSString,
+        location: Int,
+        blockRange: NSRange,
+        closingFenceRange: NSRange
+    ) -> Bool {
+        let lineRange = text.lineRange(for: NSRange(location: location, length: 0))
+        let lineContentRange = contentRangeExcludingLineEnding(from: lineRange, in: text)
+        guard lineContentRange.location > blockRange.location,
+              lineContentRange.location < closingFenceRange.location else {
+            return false
+        }
+        return text.substring(with: lineContentRange).trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private static func isInsideEmptyFormulaContentLine(
+        in text: NSString,
+        location: Int,
+        blockRange: NSRange,
+        closingFenceRange: NSRange
+    ) -> Bool {
+        let lineRange = text.lineRange(for: NSRange(location: location, length: 0))
+        let lineContentRange = contentRangeExcludingLineEnding(from: lineRange, in: text)
+        guard lineContentRange.location > blockRange.location,
+              lineContentRange.location < closingFenceRange.location else {
+            return false
+        }
+        return text.substring(with: lineContentRange).trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    private static func blockRemovalRange(in text: NSString, blockRange: NSRange) -> NSRange {
+        let blockEnd = NSMaxRange(blockRange)
+        if blockEnd < text.length,
+           CharacterSet.newlines.contains(UnicodeScalar(text.character(at: blockEnd)) ?? "\0") {
+            return NSRange(location: blockRange.location, length: blockRange.length + 1)
+        }
+        return blockRange
+    }
+
+    private static func blockRangeContains(_ lineRange: NSRange, blockRange: NSRange) -> Bool {
+        lineRange.location >= blockRange.location && NSMaxRange(lineRange) <= NSMaxRange(blockRange)
+    }
+
+    private static func isCodeFenceLine(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        return trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~")
+    }
+
+    private static func isFormulaFenceLine(_ line: String) -> Bool {
+        line.trimmingCharacters(in: .whitespaces) == "$$"
+    }
+
+    private static func fencedCodeBlockRange(containing location: Int, in text: NSString) -> NSRange? {
+        var blockStart: Int?
+
+        for lineRange in MarkdownStyleResolver.lineRanges(in: text) {
+            let line = text.substring(with: lineRange)
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let isFence = trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~")
+
+            guard isFence else { continue }
+
+            if let start = blockStart {
+                let blockRange = NSRange(location: start, length: NSMaxRange(lineRange) - start)
+                if location >= blockRange.location && location <= NSMaxRange(blockRange) {
+                    return blockRange
+                }
+                blockStart = nil
+            } else {
+                blockStart = lineRange.location
+            }
+        }
+
+        if let start = blockStart {
+            let blockRange = NSRange(location: start, length: text.length - start)
+            if location >= blockRange.location && location <= NSMaxRange(blockRange) {
+                return blockRange
+            }
+        }
+
+        return nil
+    }
+
+    private static func fencedFormulaBlockRange(containing location: Int, in text: NSString) -> NSRange? {
+        var blockStart: Int?
+
+        for lineRange in MarkdownStyleResolver.lineRanges(in: text) {
+            guard isFormulaFenceLine(text.substring(with: lineRange)) else { continue }
+
+            if let start = blockStart {
+                let blockRange = NSRange(location: start, length: NSMaxRange(lineRange) - start)
+                if location >= blockRange.location && location <= NSMaxRange(blockRange) {
+                    return blockRange
+                }
+                blockStart = nil
+            } else {
+                blockStart = lineRange.location
+            }
+        }
+
+        return nil
+    }
+
+    private static func contentRangeExcludingLineEnding(from lineRange: NSRange, in text: NSString) -> NSRange {
+        var end = min(NSMaxRange(lineRange), text.length)
+        while end > lineRange.location,
+              CharacterSet.newlines.contains(UnicodeScalar(text.character(at: end - 1)) ?? "\0") {
+            end -= 1
+        }
+        return NSRange(location: lineRange.location, length: end - lineRange.location)
+    }
 }
 
 enum MarkdownStyleResolver {
@@ -254,10 +686,14 @@ enum MarkdownStyleResolver {
 
         let formulaMatches = regexMatches("(?<!\\$)\\$([^$\\n]+?)\\$(?!\\$)", in: nsText, range: fullRange)
         for match in formulaMatches where !excludedInlineRanges.contains(where: { intersects($0, match.range) }) {
+            let isActive = activeLocation.map { containsInsertionLocation($0, in: match.range) } ?? false
+            guard isActive else {
+                excludedInlineRanges.append(match.range)
+                continue
+            }
+
             let innerRange = match.range(at: 1)
             spans.append(MarkdownStyleSpan(kind: .inlineFormula, range: innerRange))
-            spans.append(MarkdownStyleSpan(kind: .markdownDelimiter, range: NSRange(location: match.range.location, length: 1)))
-            spans.append(MarkdownStyleSpan(kind: .markdownDelimiter, range: NSRange(location: NSMaxRange(match.range) - 1, length: 1)))
             excludedInlineRanges.append(match.range)
         }
 
@@ -325,18 +761,6 @@ enum MarkdownStyleResolver {
             }
         }
 
-        if isInCodeBlock, let start = blockStart {
-            let blockRange = NSRange(location: start, length: text.length - start)
-            codeRanges.append(blockRange)
-            appendCodeBlockSpans(
-                fenceRanges: blockFenceRanges,
-                contentRanges: blockContentRanges,
-                blockRange: blockRange,
-                activeLocation: activeLocation,
-                into: &spans
-            )
-        }
-
         return codeRanges
     }
 
@@ -382,18 +806,6 @@ enum MarkdownStyleResolver {
             }
         }
 
-        if isInFormulaBlock, let start = blockStart {
-            let blockRange = NSRange(location: start, length: text.length - start)
-            formulaRanges.append(blockRange)
-            appendFormulaBlockSpans(
-                fenceRanges: blockFenceRanges,
-                contentRanges: blockContentRanges,
-                blockRange: blockRange,
-                activeLocation: activeLocation,
-                into: &spans
-            )
-        }
-
         return formulaRanges
     }
 
@@ -404,14 +816,15 @@ enum MarkdownStyleResolver {
         activeLocation: Int?,
         into spans: inout [MarkdownStyleSpan]
     ) {
-        let isActive = activeLocation.map { containsInsertionLocation($0, in: blockRange) } ?? false
-        let fenceKind: MarkdownStyleKind = isActive ? .codeBlockFence : .markdownDelimiter
-
-        spans.append(MarkdownStyleSpan(kind: .blockBackground, range: blockRange))
+        let styledContentRanges = blockStyledContentRanges(contentRanges: contentRanges, blockRange: blockRange)
+        spans.append(MarkdownStyleSpan(
+            kind: .blockBackground,
+            range: blockContentBackgroundRange(contentRanges: styledContentRanges, blockRange: blockRange)
+        ))
         for fenceRange in fenceRanges {
-            spans.append(MarkdownStyleSpan(kind: fenceKind, range: fenceRange))
+            spans.append(MarkdownStyleSpan(kind: .blockFenceDelimiter, range: fenceRange))
         }
-        for contentRange in contentRanges {
+        for contentRange in styledContentRanges {
             spans.append(MarkdownStyleSpan(kind: .codeBlock, range: contentRange))
         }
     }
@@ -423,16 +836,37 @@ enum MarkdownStyleResolver {
         activeLocation: Int?,
         into spans: inout [MarkdownStyleSpan]
     ) {
-        let isActive = activeLocation.map { containsInsertionLocation($0, in: blockRange) } ?? false
-        let fenceKind: MarkdownStyleKind = isActive ? .formulaBlockFence : .markdownDelimiter
-
-        spans.append(MarkdownStyleSpan(kind: .blockBackground, range: blockRange))
+        let styledContentRanges = blockStyledContentRanges(contentRanges: contentRanges, blockRange: blockRange)
+        spans.append(MarkdownStyleSpan(
+            kind: .blockBackground,
+            range: blockContentBackgroundRange(contentRanges: styledContentRanges, blockRange: blockRange)
+        ))
         for fenceRange in fenceRanges {
-            spans.append(MarkdownStyleSpan(kind: fenceKind, range: fenceRange))
+            spans.append(MarkdownStyleSpan(kind: .blockFenceDelimiter, range: fenceRange))
         }
-        for contentRange in contentRanges {
+        for contentRange in styledContentRanges {
             spans.append(MarkdownStyleSpan(kind: .formulaBlock, range: contentRange))
         }
+    }
+
+    private static func blockStyledContentRanges(contentRanges: [NSRange], blockRange: NSRange) -> [NSRange] {
+        contentRanges.map { range in
+            guard range.length == 0, range.location < NSMaxRange(blockRange) else { return range }
+            return NSRange(location: range.location, length: 1)
+        }
+    }
+
+    private static func blockContentBackgroundRange(contentRanges: [NSRange], blockRange: NSRange) -> NSRange {
+        guard let firstRange = contentRanges.first else { return blockRange }
+        let start = firstRange.location
+        let end = contentRanges.reduce(start) { max($0, NSMaxRange($1)) }
+        if end > start {
+            return NSRange(location: start, length: end - start)
+        }
+        if start < NSMaxRange(blockRange) {
+            return NSRange(location: start, length: 1)
+        }
+        return NSRange(location: start, length: 0)
     }
 
     private static func headingSpans(in text: NSString, lineRange: NSRange) -> [MarkdownStyleSpan] {
@@ -624,7 +1058,7 @@ enum MarkdownStyleResolver {
         }
     }
 
-    private static func lineRanges(in text: NSString) -> [NSRange] {
+    static func lineRanges(in text: NSString) -> [NSRange] {
         var ranges: [NSRange] = []
         text.enumerateSubstrings(
             in: NSRange(location: 0, length: text.length),
@@ -635,7 +1069,7 @@ enum MarkdownStyleResolver {
         return ranges
     }
 
-    private static func regexMatches(_ pattern: String, in text: NSString, range: NSRange) -> [NSTextCheckingResult] {
+    static func regexMatches(_ pattern: String, in text: NSString, range: NSRange) -> [NSTextCheckingResult] {
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
         return regex.matches(in: text as String, range: range)
     }
@@ -674,8 +1108,140 @@ enum MarkdownStyleResolver {
     }
 }
 
+enum MarkdownFormulaRenderResolver {
+    static func renderSpans(in text: String, activeLocation: Int? = nil) -> [MarkdownFormulaRenderSpan] {
+        let nsText = text as NSString
+        let fullRange = NSRange(location: 0, length: nsText.length)
+        guard fullRange.length > 0 else { return [] }
+
+        let formulaBlocks = formulaBlockInfos(in: nsText)
+        let codeBlockRanges = fencedCodeBlockRanges(in: nsText)
+        var spans = formulaBlocks.compactMap { info -> MarkdownFormulaRenderSpan? in
+            guard !isActive(activeLocation, in: info.sourceRange) else { return nil }
+            let latex = info.contentRanges
+                .map { nsText.substring(with: $0) }
+                .joined(separator: "\n")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !latex.isEmpty else { return nil }
+            return MarkdownFormulaRenderSpan(
+                sourceRange: info.sourceRange,
+                layoutRange: info.layoutRange,
+                latex: latex,
+                isBlock: true
+            )
+        }
+
+        let excludedRanges = codeBlockRanges + formulaBlocks.map(\.sourceRange)
+        for match in MarkdownStyleResolver.regexMatches("(?<!\\$)\\$([^$\\n]+?)\\$(?!\\$)", in: nsText, range: fullRange) {
+            guard !excludedRanges.contains(where: { intersects($0, match.range) }),
+                  !isActive(activeLocation, in: match.range) else {
+                continue
+            }
+
+            let latex = nsText.substring(with: match.range(at: 1)).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !latex.isEmpty else { continue }
+            spans.append(MarkdownFormulaRenderSpan(
+                sourceRange: match.range,
+                layoutRange: match.range,
+                latex: latex,
+                isBlock: false
+            ))
+        }
+
+        return spans.sorted { $0.sourceRange.location < $1.sourceRange.location }
+    }
+
+    private struct FormulaBlockInfo {
+        let sourceRange: NSRange
+        let layoutRange: NSRange
+        let contentRanges: [NSRange]
+    }
+
+    private static func formulaBlockInfos(in text: NSString) -> [FormulaBlockInfo] {
+        var infos: [FormulaBlockInfo] = []
+        var blockStart: NSRange?
+        var contentRanges: [NSRange] = []
+
+        for lineRange in MarkdownStyleResolver.lineRanges(in: text) {
+            let line = text.substring(with: lineRange)
+            let isFence = line.trimmingCharacters(in: .whitespaces) == "$$"
+
+            if isFence {
+                if let start = blockStart {
+                    let sourceRange = NSRange(location: start.location, length: NSMaxRange(lineRange) - start.location)
+                    let layoutRange = blockContentBackgroundRange(contentRanges: contentRanges, blockRange: sourceRange)
+                    infos.append(FormulaBlockInfo(
+                        sourceRange: sourceRange,
+                        layoutRange: layoutRange,
+                        contentRanges: contentRanges
+                    ))
+                    blockStart = nil
+                    contentRanges = []
+                } else {
+                    blockStart = lineRange
+                    contentRanges = []
+                }
+                continue
+            }
+
+            if blockStart != nil {
+                contentRanges.append(lineRange)
+            }
+        }
+
+        return infos
+    }
+
+    private static func fencedCodeBlockRanges(in text: NSString) -> [NSRange] {
+        var ranges: [NSRange] = []
+        var blockStart: NSRange?
+
+        for lineRange in MarkdownStyleResolver.lineRanges(in: text) {
+            let line = text.substring(with: lineRange)
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let isFence = trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~")
+
+            guard isFence else { continue }
+            if let start = blockStart {
+                ranges.append(NSRange(location: start.location, length: NSMaxRange(lineRange) - start.location))
+                blockStart = nil
+            } else {
+                blockStart = lineRange
+            }
+        }
+
+        return ranges
+    }
+
+    private static func blockContentBackgroundRange(contentRanges: [NSRange], blockRange: NSRange) -> NSRange {
+        guard let firstRange = contentRanges.first else { return blockRange }
+        let start = firstRange.location
+        let end = contentRanges.reduce(start) { max($0, NSMaxRange($1)) }
+        if end > start {
+            return NSRange(location: start, length: end - start)
+        }
+        if start < NSMaxRange(blockRange) {
+            return NSRange(location: start, length: 1)
+        }
+        return NSRange(location: start, length: 0)
+    }
+
+    private static func isActive(_ activeLocation: Int?, in range: NSRange) -> Bool {
+        guard let activeLocation else { return false }
+        return activeLocation >= range.location && activeLocation <= NSMaxRange(range)
+    }
+
+    private static func intersects(_ first: NSRange, _ second: NSRange) -> Bool {
+        NSIntersectionRange(first, second).length > 0
+    }
+}
+
 enum MarkdownTextStyler {
-    static func apply(to textView: NSTextView, glyphHider: MarkdownGlyphHider? = nil) {
+    static func apply(
+        to textView: NSTextView,
+        glyphHider: MarkdownLayoutManager? = nil,
+        formulaOverlayController: MarkdownFormulaOverlayController? = nil
+    ) {
         guard !textView.hasMarkedText(), let textStorage = textView.textStorage else {
             updateTypingAttributes(for: textView)
             return
@@ -685,6 +1251,7 @@ enum MarkdownTextStyler {
         let fullRange = NSRange(location: 0, length: nsText.length)
         guard fullRange.length > 0 else {
             glyphHider?.update(hiddenRanges: [], blockBackgroundRanges: [])
+            formulaOverlayController?.clear()
             updateTypingAttributes(for: textView)
             return
         }
@@ -692,8 +1259,12 @@ enum MarkdownTextStyler {
         let selectedRanges = textView.selectedRanges
         let selectedLocation = selectedRanges.first?.rangeValue.location ?? textView.selectedRange().location
         let spans = MarkdownStyleResolver.spans(in: textView.string, activeLocation: selectedLocation)
+        let formulaRenderSpans = MarkdownFormulaRenderResolver.renderSpans(
+            in: textView.string,
+            activeLocation: selectedLocation
+        )
         let hiddenRanges = spans.compactMap { span -> NSRange? in
-            span.kind == .markdownDelimiter ? span.range : nil
+            isHiddenMarkdownStyle(span.kind) ? span.range : nil
         }
         let blockBackgroundRanges = spans.compactMap { span -> NSRange? in
             isBlockBackgroundStyle(span.kind) ? span.range : nil
@@ -705,11 +1276,17 @@ enum MarkdownTextStyler {
         for span in spans where NSMaxRange(span.range) <= textStorage.length {
             textStorage.addAttributes(attributes(for: span.kind), range: span.range)
         }
+        for span in formulaRenderSpans where NSMaxRange(span.sourceRange) <= textStorage.length {
+            textStorage.addAttributes(formulaRenderSourceAttributes(), range: span.sourceRange)
+        }
         textStorage.endEditing()
         textView.layoutManager?.invalidateGlyphs(forCharacterRange: fullRange, changeInLength: 0, actualCharacterRange: nil)
         textView.layoutManager?.invalidateLayout(forCharacterRange: fullRange, actualCharacterRange: nil)
 
-        textView.selectedRanges = selectedRanges
+        if !selectedRangesEqual(textView.selectedRanges, selectedRanges) {
+            textView.selectedRanges = selectedRanges
+        }
+        formulaOverlayController?.update(in: textView, spans: formulaRenderSpans)
         updateTypingAttributes(for: textView)
     }
 
@@ -729,6 +1306,11 @@ enum MarkdownTextStyler {
             .foregroundColor: NSColor.labelColor,
             .paragraphStyle: paragraph
         ]
+    }
+
+    private static func selectedRangesEqual(_ first: [NSValue], _ second: [NSValue]) -> Bool {
+        guard first.count == second.count else { return false }
+        return zip(first, second).allSatisfy { $0.rangeValue == $1.rangeValue }
     }
 
     private static func attributes(for kind: MarkdownStyleKind) -> [NSAttributedString.Key: Any] {
@@ -786,6 +1368,7 @@ enum MarkdownTextStyler {
             let paragraph = NSMutableParagraphStyle()
             paragraph.lineSpacing = 2
             paragraph.paragraphSpacing = 2
+            paragraph.minimumLineHeight = 38
             paragraph.firstLineHeadIndent = blockContentIndent
             paragraph.headIndent = blockContentIndent
             paragraph.tailIndent = -blockContentIndent
@@ -865,6 +1448,17 @@ enum MarkdownTextStyler {
                 .font: NSFont.monospacedSystemFont(ofSize: 14, weight: .regular),
                 .foregroundColor: NSColor.secondaryLabelColor
             ]
+        case .blockFenceDelimiter:
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.lineSpacing = 0
+            paragraph.paragraphSpacing = 0
+            paragraph.minimumLineHeight = blockFenceSpacerHeight
+            paragraph.maximumLineHeight = blockFenceSpacerHeight
+            return [
+                .font: NSFont.systemFont(ofSize: 0.1),
+                .foregroundColor: NSColor.clear,
+                .paragraphStyle: paragraph
+            ]
         case .markdownDelimiter:
             return [
                 .foregroundColor: NSColor.secondaryLabelColor
@@ -883,14 +1477,32 @@ enum MarkdownTextStyler {
     static let blockBackgroundCornerRadius: CGFloat = 12
     static let blockBackgroundHorizontalInset: CGFloat = 4
     static let blockBackgroundVerticalPadding: CGFloat = 10
-    private static let blockContentIndent: CGFloat = 24
+    static let blockOuterVerticalSpacing: CGFloat = 8
+    private static let blockFenceSpacerHeight = blockBackgroundVerticalPadding + blockOuterVerticalSpacing
+    static let blockContentIndent: CGFloat = 24
 
     private static func inlineFormulaBackgroundColor() -> NSColor {
         NSColor.textColor.withAlphaComponent(0.08)
     }
 
+    private static func formulaRenderSourceAttributes() -> [NSAttributedString.Key: Any] {
+        [
+            .foregroundColor: NSColor.clear,
+            .backgroundColor: NSColor.clear
+        ]
+    }
+
     private static func markerColor() -> NSColor {
         NSColor.secondaryLabelColor
+    }
+
+    private static func isHiddenMarkdownStyle(_ kind: MarkdownStyleKind) -> Bool {
+        switch kind {
+        case .markdownDelimiter, .blockFenceDelimiter:
+            return true
+        default:
+            return false
+        }
     }
 
     private static func isBlockBackgroundStyle(_ kind: MarkdownStyleKind) -> Bool {
@@ -940,15 +1552,27 @@ enum MarkdownTextStyler {
     }
 }
 
-final class MarkdownGlyphHider: NSObject, NSLayoutManagerDelegate {
+final class MarkdownLayoutManager: NSLayoutManager, NSLayoutManagerDelegate {
     private var hiddenCharacterIndexes = Set<Int>()
     private var blockBackgroundRanges: [NSRange] = []
+
+    override init() {
+        super.init()
+        delegate = self
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        delegate = self
+    }
 
     func update(hiddenRanges: [NSRange], blockBackgroundRanges: [NSRange]) {
         hiddenCharacterIndexes = Set(hiddenRanges.flatMap { range in
             range.location..<(range.location + range.length)
         })
-        self.blockBackgroundRanges = Self.mergedRanges(blockBackgroundRanges)
+        self.blockBackgroundRanges = blockBackgroundRanges
+            .filter { $0.location != NSNotFound && $0.length > 0 }
+            .sorted { $0.location < $1.location }
     }
 
     func isHiddenCharacter(at index: Int) -> Bool {
@@ -959,17 +1583,31 @@ final class MarkdownGlyphHider: NSObject, NSLayoutManagerDelegate {
         blockBackgroundRanges.contains { NSLocationInRange(index, $0) }
     }
 
-    func layoutManager(
-        _ layoutManager: NSLayoutManager,
-        drawBackgroundForGlyphRange glyphsToShow: NSRange,
-        at origin: NSPoint
-    ) {
+    override func drawBackground(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
+        drawBlockBackgrounds(forGlyphRange: glyphsToShow, at: origin)
+        super.drawBackground(forGlyphRange: glyphsToShow, at: origin)
+    }
+
+    private func drawBlockBackgrounds(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) {
         guard !blockBackgroundRanges.isEmpty else { return }
         MarkdownTextStyler.fullBlockBackgroundColor().setFill()
 
+        for rect in blockBackgroundRects(forGlyphRange: glyphsToShow, at: origin) {
+            NSBezierPath(
+                roundedRect: rect,
+                xRadius: MarkdownTextStyler.blockBackgroundCornerRadius,
+                yRadius: MarkdownTextStyler.blockBackgroundCornerRadius
+            ).fill()
+        }
+    }
+
+    func blockBackgroundRects(forGlyphRange glyphsToShow: NSRange, at origin: NSPoint) -> [NSRect] {
+        guard !blockBackgroundRanges.isEmpty else { return [] }
+        var rects: [NSRect] = []
+
         for characterRange in blockBackgroundRanges {
             var effectiveCharacterRange = NSRange(location: 0, length: 0)
-            let blockGlyphRange = layoutManager.glyphRange(
+            let blockGlyphRange = glyphRange(
                 forCharacterRange: characterRange,
                 actualCharacterRange: &effectiveCharacterRange
             )
@@ -978,32 +1616,31 @@ final class MarkdownGlyphHider: NSObject, NSLayoutManagerDelegate {
 
             if let rect = backgroundRect(
                 for: visibleGlyphRange,
-                layoutManager: layoutManager,
                 origin: origin
             ) {
-                NSBezierPath(
-                    roundedRect: rect,
-                    xRadius: MarkdownTextStyler.blockBackgroundCornerRadius,
-                    yRadius: MarkdownTextStyler.blockBackgroundCornerRadius
-                ).fill()
+                rects.append(rect)
             }
         }
+
+        return rects
     }
 
     private func backgroundRect(
         for glyphRange: NSRange,
-        layoutManager: NSLayoutManager,
         origin: NSPoint
     ) -> NSRect? {
         var unionRect: NSRect?
 
-        layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, textContainer, _, _ in
+        enumerateLineFragments(forGlyphRange: glyphRange) { lineRect, _, textContainer, _, _ in
             let fragmentPadding = textContainer.lineFragmentPadding
             let horizontalInset = MarkdownTextStyler.blockBackgroundHorizontalInset
+            let containerWidth = textContainer.containerSize.width.isFinite
+                ? textContainer.containerSize.width
+                : lineRect.width
             let rect = NSRect(
                 x: origin.x + lineRect.origin.x + fragmentPadding + horizontalInset,
                 y: origin.y + lineRect.origin.y,
-                width: max(lineRect.width - fragmentPadding * 2 - horizontalInset * 2, 0),
+                width: max(containerWidth - fragmentPadding * 2 - horizontalInset * 2, 0),
                 height: lineRect.height
             )
             unionRect = unionRect.map { NSUnionRect($0, rect) } ?? rect
@@ -1014,25 +1651,6 @@ final class MarkdownGlyphHider: NSObject, NSLayoutManagerDelegate {
         rect.origin.y -= verticalPadding
         rect.size.height += verticalPadding * 2
         return rect
-    }
-
-    private static func mergedRanges(_ ranges: [NSRange]) -> [NSRange] {
-        let sortedRanges = ranges
-            .filter { $0.location != NSNotFound && $0.length > 0 }
-            .sorted { $0.location < $1.location }
-        guard var current = sortedRanges.first else { return [] }
-
-        var merged: [NSRange] = []
-        for range in sortedRanges.dropFirst() {
-            if range.location <= NSMaxRange(current) + 1 {
-                current = NSUnionRange(current, range)
-            } else {
-                merged.append(current)
-                current = range
-            }
-        }
-        merged.append(current)
-        return merged
     }
 
     func layoutManager(
@@ -1072,6 +1690,183 @@ final class MarkdownGlyphHider: NSObject, NSLayoutManagerDelegate {
         )
         return glyphCount
     }
+}
+
+#if canImport(SwiftMath)
+private final class MarkdownFormulaOverlayHost: NSView {
+    let label: MTMathUILabel
+
+    init(frame: NSRect, label: MTMathUILabel) {
+        self.label = label
+        super.init(frame: frame)
+        label.frame = bounds
+        label.autoresizingMask = [.width, .height]
+        addSubview(label)
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        nil
+    }
+}
+#endif
+
+final class MarkdownFormulaOverlayController {
+#if canImport(SwiftMath)
+    private var formulaViews: [NSView] = []
+#endif
+
+    func clear() {
+#if canImport(SwiftMath)
+        formulaViews.forEach { $0.removeFromSuperview() }
+        formulaViews.removeAll()
+#endif
+    }
+
+    func update(in textView: NSTextView, spans: [MarkdownFormulaRenderSpan]) {
+#if canImport(SwiftMath)
+        clear()
+        guard !spans.isEmpty,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else {
+            return
+        }
+
+        layoutManager.ensureLayout(for: textContainer)
+        for span in spans {
+            guard let frame = formulaFrame(for: span, in: textView, layoutManager: layoutManager, textContainer: textContainer),
+                  frame.width > 1,
+                  frame.height > 1 else {
+                continue
+            }
+
+            let label = MTMathUILabel(frame: NSRect(origin: .zero, size: frame.size))
+            label.latex = span.latex
+            label.labelMode = span.isBlock ? .display : .text
+            label.textAlignment = span.isBlock ? .center : .left
+            label.fontSize = span.isBlock ? 22 : 16
+            label.textColor = .labelColor
+            label.contentInsets = MTEdgeInsets()
+            label.autoresizingMask = []
+            let host = MarkdownFormulaOverlayHost(frame: frame, label: label)
+            textView.addSubview(host)
+            formulaViews.append(host)
+        }
+#endif
+    }
+
+#if canImport(SwiftMath)
+    private func formulaFrame(
+        for span: MarkdownFormulaRenderSpan,
+        in textView: NSTextView,
+        layoutManager: NSLayoutManager,
+        textContainer: NSTextContainer
+    ) -> NSRect? {
+        if span.isBlock {
+            return blockFormulaFrame(
+                for: span.layoutRange,
+                in: textView,
+                layoutManager: layoutManager,
+                textContainer: textContainer
+            )
+        }
+        return inlineFormulaFrame(
+            for: span.layoutRange,
+            latex: span.latex,
+            in: textView,
+            layoutManager: layoutManager,
+            textContainer: textContainer
+        )
+    }
+
+    private func blockFormulaFrame(
+        for characterRange: NSRange,
+        in textView: NSTextView,
+        layoutManager: NSLayoutManager,
+        textContainer: NSTextContainer
+    ) -> NSRect? {
+        guard let sourceRect = rect(for: characterRange, in: textView, layoutManager: layoutManager, textContainer: textContainer) else {
+            return nil
+        }
+
+        let containerWidth = textContainer.containerSize.width.isFinite
+            ? textContainer.containerSize.width
+            : textView.bounds.width
+        let horizontalInset = MarkdownTextStyler.blockBackgroundHorizontalInset + MarkdownTextStyler.blockContentIndent
+        let origin = textView.textContainerOrigin
+        let width = max(containerWidth - textContainer.lineFragmentPadding * 2 - horizontalInset * 2, 1)
+        let height = max(sourceRect.height, 38)
+        return NSRect(
+            x: origin.x + textContainer.lineFragmentPadding + horizontalInset,
+            y: sourceRect.midY - height / 2,
+            width: width,
+            height: height
+        )
+    }
+
+    private func inlineFormulaFrame(
+        for characterRange: NSRange,
+        latex: String,
+        in textView: NSTextView,
+        layoutManager: NSLayoutManager,
+        textContainer: NSTextContainer
+    ) -> NSRect? {
+        guard let sourceRect = rect(for: characterRange, in: textView, layoutManager: layoutManager, textContainer: textContainer) else {
+            return nil
+        }
+
+        let sizingLabel = MTMathUILabel()
+        sizingLabel.latex = latex
+        sizingLabel.labelMode = .text
+        sizingLabel.fontSize = 16
+        let naturalSize = sizingLabel.fittingSize
+        let width = max(naturalSize.width, sourceRect.width, 1)
+        let height = max(naturalSize.height, sourceRect.height, 1)
+        return NSRect(
+            x: sourceRect.minX,
+            y: sourceRect.midY - height / 2,
+            width: width,
+            height: height
+        )
+    }
+
+    private func rect(
+        for characterRange: NSRange,
+        in textView: NSTextView,
+        layoutManager: NSLayoutManager,
+        textContainer: NSTextContainer
+    ) -> NSRect? {
+        guard characterRange.location != NSNotFound,
+              characterRange.length > 0,
+              NSMaxRange(characterRange) <= textView.string.utf16.count else {
+            return nil
+        }
+
+        var effectiveRange = NSRange(location: 0, length: 0)
+        let glyphRange = layoutManager.glyphRange(
+            forCharacterRange: characterRange,
+            actualCharacterRange: &effectiveRange
+        )
+        guard glyphRange.length > 0 else { return nil }
+
+        var unionRect: NSRect?
+        layoutManager.enumerateLineFragments(forGlyphRange: glyphRange) { _, _, textContainer, lineGlyphRange, _ in
+            let intersection = NSIntersectionRange(glyphRange, lineGlyphRange)
+            guard intersection.length > 0 else { return }
+            let rect = layoutManager.boundingRect(forGlyphRange: intersection, in: textContainer)
+            unionRect = unionRect.map { NSUnionRect($0, rect) } ?? rect
+        }
+
+        guard var rect = unionRect else { return nil }
+        let origin = textView.textContainerOrigin
+        rect.origin.x += origin.x
+        rect.origin.y += origin.y
+        return rect
+    }
+#endif
 }
 
 struct FloatingNoteView: View {
@@ -1171,8 +1966,8 @@ struct FloatingNoteView: View {
                     Text("写点什么...")
                         .font(.system(size: 15))
                         .foregroundStyle(.tertiary)
-                        .padding(.top, 16)
-                        .padding(.leading, 18)
+                        .padding(.top, MarkdownTextView.placeholderTopPadding)
+                        .padding(.leading, MarkdownTextView.placeholderLeadingPadding)
                         .allowsHitTesting(false)
                 }
             }
@@ -1315,6 +2110,10 @@ struct WindowDragHandle: NSViewRepresentable {
 }
 
 struct MarkdownTextView: NSViewRepresentable {
+    static let textContainerInset = NSSize(width: 12, height: 32)
+    static let placeholderTopPadding: CGFloat = 32
+    static let placeholderLeadingPadding: CGFloat = 18
+
     @Binding var text: String
     let focusRequestID: Int
 
@@ -1330,7 +2129,17 @@ struct MarkdownTextView: NSViewRepresentable {
         scrollView.drawsBackground = false
         scrollView.borderType = .noBorder
 
-        let textView = NSTextView()
+        let textStorage = NSTextStorage()
+        let layoutManager = context.coordinator.glyphHider
+        let textContainer = NSTextContainer(containerSize: NSSize(
+            width: scrollView.contentSize.width,
+            height: CGFloat.greatestFiniteMagnitude
+        ))
+        textContainer.widthTracksTextView = true
+        textStorage.addLayoutManager(layoutManager)
+        layoutManager.addTextContainer(textContainer)
+
+        let textView = NSTextView(frame: .zero, textContainer: textContainer)
         textView.delegate = context.coordinator
         textView.string = text
         textView.isEditable = true
@@ -1344,7 +2153,7 @@ struct MarkdownTextView: NSViewRepresentable {
         textView.insertionPointColor = .controlAccentColor
         textView.backgroundColor = .clear
         textView.drawsBackground = false
-        textView.textContainerInset = NSSize(width: 12, height: 12)
+        textView.textContainerInset = MarkdownTextView.textContainerInset
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
@@ -1353,10 +2162,7 @@ struct MarkdownTextView: NSViewRepresentable {
         textView.isContinuousSpellCheckingEnabled = false
         textView.usesFindPanel = true
         textView.textContainer?.widthTracksTextView = true
-        textView.textContainer?.containerSize = NSSize(
-            width: scrollView.contentSize.width,
-            height: CGFloat.greatestFiniteMagnitude
-        )
+        textView.textContainer?.containerSize = textContainer.containerSize
         textView.minSize = NSSize(width: 0, height: 0)
         textView.maxSize = NSSize(
             width: CGFloat.greatestFiniteMagnitude,
@@ -1368,8 +2174,7 @@ struct MarkdownTextView: NSViewRepresentable {
 
         scrollView.documentView = textView
         context.coordinator.textView = textView
-        textView.layoutManager?.delegate = context.coordinator.glyphHider
-        MarkdownTextStyler.apply(to: textView, glyphHider: context.coordinator.glyphHider)
+        context.coordinator.refreshMarkdown(in: textView)
         return scrollView
     }
 
@@ -1380,7 +2185,7 @@ struct MarkdownTextView: NSViewRepresentable {
             let selectedRanges = textView.selectedRanges
             textView.string = text
             textView.selectedRanges = selectedRanges
-            MarkdownTextStyler.apply(to: textView, glyphHider: context.coordinator.glyphHider)
+            context.coordinator.refreshMarkdown(in: textView)
         }
 
         if context.coordinator.lastFocusRequestID != focusRequestID {
@@ -1394,8 +2199,10 @@ struct MarkdownTextView: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
         @Binding private var text: String
         weak var textView: NSTextView?
-        let glyphHider = MarkdownGlyphHider()
+        let glyphHider = MarkdownLayoutManager()
+        let formulaOverlayController = MarkdownFormulaOverlayController()
         var lastFocusRequestID = 0
+        private var isRefreshingMarkdown = false
 
         init(text: Binding<String>) {
             _text = text
@@ -1408,12 +2215,45 @@ struct MarkdownTextView: NSViewRepresentable {
                 return
             }
             text = textView.string
-            MarkdownTextStyler.apply(to: textView, glyphHider: glyphHider)
+            refreshMarkdown(in: textView)
         }
 
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
-            MarkdownTextStyler.updateTypingAttributes(for: textView)
+            guard !isRefreshingMarkdown else { return }
+            refreshMarkdown(in: textView)
+        }
+
+        func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            let edit: MarkdownEditResult?
+            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+                edit = MarkdownCodeBlockEditing.exitCodeBlockOnBlankCodeLine(
+                    in: textView.string,
+                    selectedRange: textView.selectedRange()
+                ) ?? MarkdownCodeBlockEditing.exitFormulaBlockOnBlankFormulaLine(
+                    in: textView.string,
+                    selectedRange: textView.selectedRange()
+                )
+            } else if commandSelector == #selector(NSResponder.deleteBackward(_:)) {
+                edit = MarkdownCodeBlockEditing.collapseEmptyCodeBlockOnBackspace(
+                    in: textView.string,
+                    selectedRange: textView.selectedRange()
+                ) ?? MarkdownCodeBlockEditing.collapseEmptyFormulaBlockOnBackspace(
+                    in: textView.string,
+                    selectedRange: textView.selectedRange()
+                )
+            } else if commandSelector == #selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)) {
+                edit = MarkdownCodeBlockEditing.exitCodeBlock(
+                    in: textView.string,
+                    selectedRange: textView.selectedRange()
+                )
+            } else {
+                return false
+            }
+
+            guard let edit else { return false }
+            apply(edit, to: textView)
+            return true
         }
 
         func textView(
@@ -1421,8 +2261,41 @@ struct MarkdownTextView: NSViewRepresentable {
             shouldChangeTextIn affectedCharRange: NSRange,
             replacementString: String?
         ) -> Bool {
+            if let replacementString,
+               let edit = MarkdownCodeBlockEditing.expandOpeningFence(
+                in: textView.string,
+                affectedRange: affectedCharRange,
+                replacementString: replacementString
+               ) ?? MarkdownCodeBlockEditing.expandOpeningFormulaFence(
+                in: textView.string,
+                affectedRange: affectedCharRange,
+                replacementString: replacementString
+               ) {
+                apply(edit, to: textView)
+                return false
+            }
+
             MarkdownTextStyler.updateTypingAttributes(for: textView)
             return true
+        }
+
+        private func apply(_ edit: MarkdownEditResult, to textView: NSTextView) {
+            textView.string = edit.text
+            text = edit.text
+            textView.setSelectedRange(edit.selectedRange)
+            refreshMarkdown(in: textView)
+        }
+
+        func refreshMarkdown(in textView: NSTextView) {
+            guard !isRefreshingMarkdown else { return }
+            isRefreshingMarkdown = true
+            defer { isRefreshingMarkdown = false }
+
+            MarkdownTextStyler.apply(
+                to: textView,
+                glyphHider: glyphHider,
+                formulaOverlayController: formulaOverlayController
+            )
         }
     }
 }
