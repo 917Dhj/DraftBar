@@ -45,6 +45,38 @@ func jsonObject(_ relativePath: String) -> [String: Any] {
     }
 }
 
+func textFile(_ relativePath: String) -> String {
+    let url = requireFile(relativePath)
+    do {
+        return try String(contentsOf: url, encoding: .utf8)
+    } catch {
+        fail("Could not read text file at \(relativePath): \(error)")
+    }
+}
+
+func occurrenceCount(of needle: String, in haystack: String) -> Int {
+    var count = 0
+    var searchRange = haystack.startIndex..<haystack.endIndex
+    while let range = haystack.range(of: needle, options: [], range: searchRange) {
+        count += 1
+        searchRange = range.upperBound..<haystack.endIndex
+    }
+    return count
+}
+
+func validateStatusIconSource(_ relativePath: String) {
+    let svg = textFile(relativePath)
+    guard svg.contains("data-role=\"note-outline\"") else {
+        fail("StatusBarIcon source must include a hollow note outline")
+    }
+    guard occurrenceCount(of: "data-role=\"note-line\"", in: svg) == 2 else {
+        fail("StatusBarIcon source must include exactly two note lines")
+    }
+    guard !svg.contains("x=\"3.7\" y=\"5.2\" width=\"10.9\" height=\"10.4\" rx=\"2.2\" fill=\"#000\"") else {
+        fail("StatusBarIcon source must not use a solid filled note body")
+    }
+}
+
 struct ImageEntry: Hashable, CustomStringConvertible {
     let idiom: String
     let size: String?
@@ -203,6 +235,6 @@ guard properties?["template-rendering-intent"] as? String == "template" else {
 }
 
 _ = requireFile("IconSource/MenuBarMemoAppIcon.svg")
-_ = requireFile("IconSource/MenuBarMemoStatusBarIcon.svg")
+validateStatusIconSource("IconSource/MenuBarMemoStatusBarIcon.svg")
 
 print("Icon asset validation passed")

@@ -236,7 +236,9 @@ func drawStatusIcon(pixels: Int) -> NSBitmapImageRep {
         let ink = rgba(0, 0, 0)
 
         fillRounded(context, rect: CGRect(x: 2.5, y: 1.4, width: 13.0, height: 2.8), radius: 1.4, color: ink)
-        fillRounded(context, rect: CGRect(x: 3.7, y: 5.2, width: 10.9, height: 10.4), radius: 2.2, color: ink)
+        strokeRounded(context, rect: CGRect(x: 3.7, y: 5.2, width: 10.9, height: 10.4), radius: 2.2, color: ink, lineWidth: 1.55)
+        fillRounded(context, rect: CGRect(x: 6.0, y: 8.1, width: 4.7, height: 1.0), radius: 0.5, color: ink)
+        fillRounded(context, rect: CGRect(x: 6.0, y: 10.6, width: 3.6, height: 1.0), radius: 0.5, color: ink)
 
         drawRotated(context: context, center: CGPoint(x: 13.0, y: 12.0), degrees: -34) {
             fillRounded(context, rect: CGRect(x: -6.4, y: -1.3, width: 12.8, height: 2.6), radius: 1.3, color: ink)
@@ -298,7 +300,9 @@ let appSVG = """
 let statusSVG = """
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18">
   <rect x="2.5" y="1.4" width="13" height="2.8" rx="1.4" fill="#000"/>
-  <rect x="3.7" y="5.2" width="10.9" height="10.4" rx="2.2" fill="#000"/>
+  <rect data-role="note-outline" x="3.7" y="5.2" width="10.9" height="10.4" rx="2.2" fill="none" stroke="#000" stroke-width="1.55"/>
+  <rect data-role="note-line" x="6" y="8.1" width="4.7" height="1" rx="0.5" fill="#000"/>
+  <rect data-role="note-line" x="6" y="10.6" width="3.6" height="1" rx="0.5" fill="#000"/>
   <g transform="translate(13 12) rotate(-34)">
     <polygon points="-8.5,0 -6.4,-1.2 -6.4,1.2" fill="#000"/>
     <rect x="-6.4" y="-1.3" width="12.8" height="2.6" rx="1.3" fill="#000"/>
