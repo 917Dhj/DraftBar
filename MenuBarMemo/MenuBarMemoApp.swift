@@ -59,7 +59,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem = item
 
         guard let button = item.button else { return }
-        let image = NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "MenuBarMemo")
+        let image = NSImage(named: "StatusBarIcon")
+            ?? NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "MenuBarMemo")
         image?.isTemplate = true
         button.image = image
         button.toolTip = "MenuBarMemo"

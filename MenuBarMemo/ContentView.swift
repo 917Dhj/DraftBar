@@ -1916,10 +1916,7 @@ struct FloatingNoteView: View {
         ZStack {
             noteBackground
 
-            Image(systemName: "square.and.pencil")
-                .font(.system(size: 14, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(.secondary)
+            dragSeedIcon
                 .opacity(dragSeedOpacity)
                 .allowsHitTesting(false)
 
@@ -1965,6 +1962,15 @@ struct FloatingNoteView: View {
                     .stroke(.white.opacity(0.30), lineWidth: 1)
             }
             .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, y: 6)
+    }
+
+    private var dragSeedIcon: some View {
+        Image("StatusBarIcon")
+            .renderingMode(.template)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 16, height: 16)
+            .foregroundStyle(.secondary)
     }
 
     private var floatingControls: some View {
