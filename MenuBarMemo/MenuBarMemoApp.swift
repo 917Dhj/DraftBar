@@ -27,6 +27,20 @@ struct MenuBarMemoApp: App {
     }
 }
 
+private enum StatusItemIconState {
+    case hidden
+    case visible
+
+    var assetName: String {
+        switch self {
+        case .hidden:
+            "StatusBarIconHidden"
+        case .visible:
+            "StatusBarIconVisible"
+        }
+    }
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let store = MemoStore()
     private let focusController = MemoEditorFocusController()
@@ -59,10 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem = item
 
         guard let button = item.button else { return }
-        let image = NSImage(named: "StatusBarIcon")
-            ?? NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "MenuBarMemo")
-        image?.isTemplate = true
-        button.image = image
+        updateStatusItemIcon(.hidden)
         button.toolTip = "MenuBarMemo"
         button.target = self
         button.action = #selector(statusItemPressed(_:))
@@ -71,6 +82,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             guard let self else { return }
             self.debugStatusLog("buttonBounds=\(button?.bounds ?? .zero) frame=\(self.statusButtonScreenFrameDescription())")
         }
+    }
+
+    private func updateStatusItemIcon(_ state: StatusItemIconState) {
+        guard let button = statusItem?.button else { return }
+        let image = NSImage(named: state.assetName)
+            ?? NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "MenuBarMemo")
+        image?.isTemplate = true
+        button.image = image
     }
 
     @objc private func statusItemPressed(_ sender: NSStatusBarButton) {
@@ -120,6 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             panel.makeKeyAndOrderFront(nil)
         }
 
+        updateStatusItemIcon(.visible)
         NSApp.activate(ignoringOtherApps: true)
         focusController.requestFocus()
         debugStatusLog("showFloatingNote visible=\(panel.isVisible) frame=\(panel.frame)")
@@ -250,6 +270,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             panel.makeKeyAndOrderFront(nil)
         }
 
+        updateStatusItemIcon(.visible)
         applyPinnedLevel(to: panel)
         NSApp.activate(ignoringOtherApps: true)
         focusController.requestFocus()
@@ -263,6 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         guard let targetFrame = statusButtonScreenFrame()?.insetBy(dx: -6, dy: -6) else {
             panel.orderOut(nil)
+            updateStatusItemIcon(.hidden)
             return
         }
 
@@ -274,11 +296,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             panel.animator().setFrame(targetFrame, display: true)
             panel.animator().alphaValue = 0
         } completionHandler: { [weak self, weak panel] in
-            guard let panel else { return }
+            guard let self, let panel else { return }
             panel.orderOut(nil)
             panel.alphaValue = 1
             panel.setFrame(restoreFrame, display: false)
-            self?.isClosingPanel = false
+            self.isClosingPanel = false
+            self.updateStatusItemIcon(.hidden)
         }
     }
 

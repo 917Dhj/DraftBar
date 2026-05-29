@@ -1965,7 +1965,7 @@ struct FloatingNoteView: View {
     }
 
     private var dragSeedIcon: some View {
-        Image("StatusBarIcon")
+        Image("StatusBarIconHidden")
             .renderingMode(.template)
             .resizable()
             .aspectRatio(contentMode: .fit)

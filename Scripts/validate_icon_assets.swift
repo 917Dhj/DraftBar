@@ -94,6 +94,30 @@ func validateStatusIconSource(_ relativePath: String, requiresChevron: Bool) {
     }
 }
 
+func validateStatusIconAppWiring() {
+    let appSource = textFile("MenuBarMemo/MenuBarMemoApp.swift")
+    guard appSource.contains("private enum StatusItemIconState") else {
+        fail("AppDelegate must define StatusItemIconState")
+    }
+    guard appSource.contains("StatusBarIconHidden") &&
+            appSource.contains("StatusBarIconVisible") else {
+        fail("AppDelegate must reference hidden and visible status icon assets")
+    }
+    guard appSource.contains("updateStatusItemIcon(.hidden)") &&
+            appSource.contains("updateStatusItemIcon(.visible)") else {
+        fail("AppDelegate must switch status item icons for hidden and visible states")
+    }
+    guard appSource.contains("panel.orderOut(nil)") &&
+            appSource.contains("self.updateStatusItemIcon(.hidden)") else {
+        fail("closeFloatingNote must switch back to the hidden icon after the panel orders out")
+    }
+
+    let contentSource = textFile("MenuBarMemo/ContentView.swift")
+    guard contentSource.contains("Image(\"StatusBarIconHidden\")") else {
+        fail("Drag seed icon must use StatusBarIconHidden")
+    }
+}
+
 struct ImageEntry: Hashable, CustomStringConvertible {
     let idiom: String
     let size: String?
@@ -269,5 +293,6 @@ validateStatusContents(
 _ = requireFile("IconSource/MenuBarMemoAppIcon.svg")
 validateStatusIconSource("IconSource/MenuBarMemoStatusBarIconHidden.svg", requiresChevron: true)
 validateStatusIconSource("IconSource/MenuBarMemoStatusBarIconVisible.svg", requiresChevron: false)
+validateStatusIconAppWiring()
 
 print("Icon asset validation passed")
