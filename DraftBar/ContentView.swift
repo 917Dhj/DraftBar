@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  MenuBarMemo
+//  DraftBar
 //
 //  Created by 丁泓景 on 2026/5/28.
 //
@@ -132,6 +132,7 @@ final class MemoStore: NSObject, ObservableObject {
     @Published private(set) var saveState: SaveState = .saved
 
     let noteURL: URL
+    private let legacyNoteURLs: [URL]
     private var lastSavedText = ""
     private var isLoading = false
 
@@ -139,8 +140,9 @@ final class MemoStore: NSObject, ObservableObject {
         let baseURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
         noteURL = baseURL
-            .appendingPathComponent("MenuBarMemo", isDirectory: true)
+            .appendingPathComponent("DraftBar", isDirectory: true)
             .appendingPathComponent("note.md")
+        legacyNoteURLs = Self.legacyNoteURLs(baseURL: baseURL)
         super.init()
     }
 
@@ -150,6 +152,7 @@ final class MemoStore: NSObject, ObservableObject {
 
         do {
             try prepareDirectory()
+            migrateLegacyNoteIfNeeded()
             if FileManager.default.fileExists(atPath: noteURL.path) {
                 text = try String(contentsOf: noteURL, encoding: .utf8)
             } else {
@@ -203,6 +206,45 @@ final class MemoStore: NSObject, ObservableObject {
             at: noteURL.deletingLastPathComponent(),
             withIntermediateDirectories: true
         )
+    }
+
+    private func migrateLegacyNoteIfNeeded() {
+        let fileManager = FileManager.default
+        guard !fileManager.fileExists(atPath: noteURL.path) else { return }
+
+        for legacyURL in legacyNoteURLs where legacyURL.path != noteURL.path {
+            guard fileManager.fileExists(atPath: legacyURL.path) else { continue }
+
+            do {
+                try fileManager.copyItem(at: legacyURL, to: noteURL)
+                return
+            } catch {
+                continue
+            }
+        }
+    }
+
+    private static func legacyNoteURLs(baseURL: URL) -> [URL] {
+        let homeURL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+        let candidates = [
+            baseURL
+                .appendingPathComponent("MenuBarMemo", isDirectory: true)
+                .appendingPathComponent("note.md"),
+            homeURL
+                .appendingPathComponent("Library/Application Support/MenuBarMemo", isDirectory: true)
+                .appendingPathComponent("note.md"),
+            homeURL
+                .appendingPathComponent("Library/Containers/com.dinghongjing.MenuBarMemo/Data/Library/Application Support/MenuBarMemo", isDirectory: true)
+                .appendingPathComponent("note.md")
+        ]
+
+        var seenPaths = Set<String>()
+        return candidates.filter { url in
+            let path = url.standardizedFileURL.path
+            guard !seenPaths.contains(path) else { return false }
+            seenPaths.insert(path)
+            return true
+        }
     }
 }
 

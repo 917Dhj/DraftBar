@@ -73,7 +73,7 @@ func requireOrder(in text: String, first: String, second: String, failure: Strin
 }
 
 func validateAppIconPenLayering() {
-    let appSVG = textFile("IconSource/MenuBarMemoAppIcon.svg")
+    let appSVG = textFile("IconSource/DraftBarAppIcon.svg")
     requireOrder(
         in: appSVG,
         first: "<rect x=\"382\" y=\"698\" width=\"250\" height=\"28\" rx=\"14\" fill=\"url(#ink)\"/>",
@@ -121,7 +121,7 @@ func validateStatusIconSource(_ relativePath: String, requiresChevron: Bool) {
 }
 
 func validateStatusIconAppWiring() {
-    let appSource = textFile("MenuBarMemo/MenuBarMemoApp.swift")
+    let appSource = textFile("DraftBar/DraftBarApp.swift")
     guard appSource.contains("private enum StatusItemIconState") else {
         fail("AppDelegate must define StatusItemIconState")
     }
@@ -138,7 +138,7 @@ func validateStatusIconAppWiring() {
         fail("closeFloatingNote must switch back to the hidden icon after the panel orders out")
     }
 
-    let contentSource = textFile("MenuBarMemo/ContentView.swift")
+    let contentSource = textFile("DraftBar/ContentView.swift")
     guard contentSource.contains("Image(\"StatusBarIconHidden\")") else {
         fail("Drag seed icon must use StatusBarIconHidden")
     }
@@ -263,20 +263,20 @@ func validateStatusContents(relativePath: String, catalogName: String, baseName:
 }
 
 let expectedPNGs = [
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-16x16@1x.png", width: 16, height: 16),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-16x16@2x.png", width: 32, height: 32),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-32x32@1x.png", width: 32, height: 32),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-32x32@2x.png", width: 64, height: 64),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-128x128@1x.png", width: 128, height: 128),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-128x128@2x.png", width: 256, height: 256),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-256x256@1x.png", width: 256, height: 256),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-256x256@2x.png", width: 512, height: 512),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-512x512@1x.png", width: 512, height: 512),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/AppIcon.appiconset/AppIcon-512x512@2x.png", width: 1024, height: 1024),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconHidden.imageset/StatusBarIconHidden.png", width: 18, height: 18),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconHidden.imageset/StatusBarIconHidden@2x.png", width: 36, height: 36),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconVisible.imageset/StatusBarIconVisible.png", width: 18, height: 18),
-    ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconVisible.imageset/StatusBarIconVisible@2x.png", width: 36, height: 36)
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/AppIcon.appiconset/AppIcon-16x16@1x.png", width: 16, height: 16),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/AppIcon.appiconset/AppIcon-16x16@2x.png", width: 32, height: 32),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/AppIcon.appiconset/AppIcon-32x32@1x.png", width: 32, height: 32),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/AppIcon.appiconset/AppIcon-32x32@2x.png", width: 64, height: 64),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/AppIcon.appiconset/AppIcon-128x128@1x.png", width: 128, height: 128),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/AppIcon.appiconset/AppIcon-128x128@2x.png", width: 256, height: 256),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/AppIcon.appiconset/AppIcon-256x256@1x.png", width: 256, height: 256),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/AppIcon.appiconset/AppIcon-256x256@2x.png", width: 512, height: 512),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/AppIcon.appiconset/AppIcon-512x512@1x.png", width: 512, height: 512),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/AppIcon.appiconset/AppIcon-512x512@2x.png", width: 1024, height: 1024),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/StatusBarIconHidden.imageset/StatusBarIconHidden.png", width: 18, height: 18),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/StatusBarIconHidden.imageset/StatusBarIconHidden@2x.png", width: 36, height: 36),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/StatusBarIconVisible.imageset/StatusBarIconVisible.png", width: 18, height: 18),
+    ExpectedPNG(path: "DraftBar/Assets.xcassets/StatusBarIconVisible.imageset/StatusBarIconVisible@2x.png", width: 36, height: 36)
 ]
 
 for expected in expectedPNGs {
@@ -287,7 +287,7 @@ for expected in expectedPNGs {
     }
 }
 
-let appIconJSON = jsonObject("MenuBarMemo/Assets.xcassets/AppIcon.appiconset/Contents.json")
+let appIconJSON = jsonObject("DraftBar/Assets.xcassets/AppIcon.appiconset/Contents.json")
 guard let appImages = appIconJSON["images"] as? [[String: Any]] else {
     fail("AppIcon Contents.json has no images array")
 }
@@ -306,19 +306,19 @@ validateImageEntries(appImages, expected: [
 ], expectedKeys: ["idiom", "size", "scale", "filename"], catalogName: "AppIcon")
 
 validateStatusContents(
-    relativePath: "MenuBarMemo/Assets.xcassets/StatusBarIconHidden.imageset/Contents.json",
+    relativePath: "DraftBar/Assets.xcassets/StatusBarIconHidden.imageset/Contents.json",
     catalogName: "StatusBarIconHidden",
     baseName: "StatusBarIconHidden"
 )
 validateStatusContents(
-    relativePath: "MenuBarMemo/Assets.xcassets/StatusBarIconVisible.imageset/Contents.json",
+    relativePath: "DraftBar/Assets.xcassets/StatusBarIconVisible.imageset/Contents.json",
     catalogName: "StatusBarIconVisible",
     baseName: "StatusBarIconVisible"
 )
 
 validateAppIconPenLayering()
-validateStatusIconSource("IconSource/MenuBarMemoStatusBarIconHidden.svg", requiresChevron: true)
-validateStatusIconSource("IconSource/MenuBarMemoStatusBarIconVisible.svg", requiresChevron: false)
+validateStatusIconSource("IconSource/DraftBarStatusBarIconHidden.svg", requiresChevron: true)
+validateStatusIconSource("IconSource/DraftBarStatusBarIconVisible.svg", requiresChevron: false)
 validateStatusIconAppWiring()
 
 print("Icon asset validation passed")

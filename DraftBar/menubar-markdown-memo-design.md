@@ -210,7 +210,7 @@ MVP 不需要 Markdown 语法高亮。原因：
 MVP 建议保存为一个本地 Markdown 文件：
 
 ```text
-~/Library/Application Support/MenuBarMemo/note.md
+~/Library/Application Support/DraftBar/note.md
 ```
 
 自动保存策略：
@@ -280,12 +280,12 @@ MVP 建议保存为一个本地 Markdown 文件：
 
 临时内部名：
 
-- MenuBarMemo
+- DraftBar
 - GlassMemo
 - QuickLeaf
 - Memospace
 
-建议第一版工程名用 `MenuBarMemo`，避免过早品牌化。
+建议第一版工程名用 `DraftBar`，避免过早品牌化。
 
 ## 13. 验收标准
 

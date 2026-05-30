@@ -1,10 +1,10 @@
-# MenuBarMemo Task List Checkbox 设计规格
+# DraftBar Task List Checkbox 设计规格
 
 日期：2026-05-29
 
 ## 1. 背景
 
-MenuBarMemo 当前是一个 macOS 菜单栏 Markdown 备忘录 app，编辑器基于原生 `NSTextView`，并已经有同区 Markdown 渲染逻辑。用户希望加入 Typora、GitHub Markdown 等编辑器中常见的 task list 语法，让 `- [ ]` / `- [x]` 这类列表项显示为可点击的 checkbox。
+DraftBar 当前是一个 macOS 菜单栏 Markdown 备忘录 app，编辑器基于原生 `NSTextView`，并已经有同区 Markdown 渲染逻辑。用户希望加入 Typora、GitHub Markdown 等编辑器中常见的 task list 语法，让 `- [ ]` / `- [x]` 这类列表项显示为可点击的 checkbox。
 
 这个功能必须兼容普通无序列表。`-` 本身已经是 Markdown 列表 marker，因此 task list 应作为无序列表的更具体子语法处理，而不是改变所有 `- item` 行的交互。
 

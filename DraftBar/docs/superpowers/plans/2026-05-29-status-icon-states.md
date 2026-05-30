@@ -19,14 +19,14 @@
 - Modify `Scripts/generate_icon_assets.swift`
   - Generate `StatusBarIconHidden.imageset` and `StatusBarIconVisible.imageset`.
   - Generate matching SVG sources in `IconSource/`.
-- Delete `MenuBarMemo/Assets.xcassets/StatusBarIcon.imageset/`
+- Delete `DraftBar/Assets.xcassets/StatusBarIcon.imageset/`
   - Replace it with explicit hidden and visible asset names.
-- Delete `IconSource/MenuBarMemoStatusBarIcon.svg`
-  - Replace it with `MenuBarMemoStatusBarIconHidden.svg` and `MenuBarMemoStatusBarIconVisible.svg`.
-- Modify `MenuBarMemo/MenuBarMemoApp.swift`
+- Delete `IconSource/DraftBarStatusBarIcon.svg`
+  - Replace it with `DraftBarStatusBarIconHidden.svg` and `DraftBarStatusBarIconVisible.svg`.
+- Modify `DraftBar/DraftBarApp.swift`
   - Add a small status icon state enum and helper.
   - Switch icons in show, drag, and close paths.
-- Modify `MenuBarMemo/ContentView.swift`
+- Modify `DraftBar/ContentView.swift`
   - Use the hidden-state asset for the drag seed icon.
 
 ---
@@ -36,29 +36,29 @@
 **Files:**
 - Modify: `Scripts/validate_icon_assets.swift`
 - Modify: `Scripts/generate_icon_assets.swift`
-- Delete: `MenuBarMemo/Assets.xcassets/StatusBarIcon.imageset/`
-- Delete: `IconSource/MenuBarMemoStatusBarIcon.svg`
-- Create: `MenuBarMemo/Assets.xcassets/StatusBarIconHidden.imageset/`
-- Create: `MenuBarMemo/Assets.xcassets/StatusBarIconVisible.imageset/`
-- Create: `IconSource/MenuBarMemoStatusBarIconHidden.svg`
-- Create: `IconSource/MenuBarMemoStatusBarIconVisible.svg`
+- Delete: `DraftBar/Assets.xcassets/StatusBarIcon.imageset/`
+- Delete: `IconSource/DraftBarStatusBarIcon.svg`
+- Create: `DraftBar/Assets.xcassets/StatusBarIconHidden.imageset/`
+- Create: `DraftBar/Assets.xcassets/StatusBarIconVisible.imageset/`
+- Create: `IconSource/DraftBarStatusBarIconHidden.svg`
+- Create: `IconSource/DraftBarStatusBarIconVisible.svg`
 
 - [ ] **Step 1: Update the validator to expect two status icon assets**
 
 In `Scripts/validate_icon_assets.swift`, replace the two existing status PNG entries in `expectedPNGs`:
 
 ```swift
-ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIcon.imageset/StatusBarIcon.png", width: 18, height: 18),
-ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIcon.imageset/StatusBarIcon@2x.png", width: 36, height: 36)
+ExpectedPNG(path: "DraftBar/Assets.xcassets/StatusBarIcon.imageset/StatusBarIcon.png", width: 18, height: 18),
+ExpectedPNG(path: "DraftBar/Assets.xcassets/StatusBarIcon.imageset/StatusBarIcon@2x.png", width: 36, height: 36)
 ```
 
 with:
 
 ```swift
-ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconHidden.imageset/StatusBarIconHidden.png", width: 18, height: 18),
-ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconHidden.imageset/StatusBarIconHidden@2x.png", width: 36, height: 36),
-ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconVisible.imageset/StatusBarIconVisible.png", width: 18, height: 18),
-ExpectedPNG(path: "MenuBarMemo/Assets.xcassets/StatusBarIconVisible.imageset/StatusBarIconVisible@2x.png", width: 36, height: 36)
+ExpectedPNG(path: "DraftBar/Assets.xcassets/StatusBarIconHidden.imageset/StatusBarIconHidden.png", width: 18, height: 18),
+ExpectedPNG(path: "DraftBar/Assets.xcassets/StatusBarIconHidden.imageset/StatusBarIconHidden@2x.png", width: 36, height: 36),
+ExpectedPNG(path: "DraftBar/Assets.xcassets/StatusBarIconVisible.imageset/StatusBarIconVisible.png", width: 18, height: 18),
+ExpectedPNG(path: "DraftBar/Assets.xcassets/StatusBarIconVisible.imageset/StatusBarIconVisible@2x.png", width: 36, height: 36)
 ```
 
 Replace `validateStatusIconSource(_:)` with this version:
@@ -115,19 +115,19 @@ func validateStatusContents(_ relativePath: String, catalogName: String, baseNam
 }
 
 validateStatusContents(
-    "MenuBarMemo/Assets.xcassets/StatusBarIconHidden.imageset/Contents.json",
+    "DraftBar/Assets.xcassets/StatusBarIconHidden.imageset/Contents.json",
     catalogName: "StatusBarIconHidden",
     baseName: "StatusBarIconHidden"
 )
 validateStatusContents(
-    "MenuBarMemo/Assets.xcassets/StatusBarIconVisible.imageset/Contents.json",
+    "DraftBar/Assets.xcassets/StatusBarIconVisible.imageset/Contents.json",
     catalogName: "StatusBarIconVisible",
     baseName: "StatusBarIconVisible"
 )
 
-_ = requireFile("IconSource/MenuBarMemoAppIcon.svg")
-validateStatusIconSource("IconSource/MenuBarMemoStatusBarIconHidden.svg", requiresChevron: true)
-validateStatusIconSource("IconSource/MenuBarMemoStatusBarIconVisible.svg", requiresChevron: false)
+_ = requireFile("IconSource/DraftBarAppIcon.svg")
+validateStatusIconSource("IconSource/DraftBarStatusBarIconHidden.svg", requiresChevron: true)
+validateStatusIconSource("IconSource/DraftBarStatusBarIconVisible.svg", requiresChevron: false)
 ```
 
 - [ ] **Step 2: Run the validator and verify it fails before generation changes**
@@ -228,9 +228,9 @@ try fileManager.createDirectory(at: statusHiddenIconDir, withIntermediateDirecto
 try fileManager.createDirectory(at: statusVisibleIconDir, withIntermediateDirectories: true)
 try fileManager.createDirectory(at: sourceDir, withIntermediateDirectories: true)
 
-try appSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoAppIcon.svg"), atomically: true, encoding: .utf8)
-try statusHiddenSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoStatusBarIconHidden.svg"), atomically: true, encoding: .utf8)
-try statusVisibleSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoStatusBarIconVisible.svg"), atomically: true, encoding: .utf8)
+try appSVG.write(to: sourceDir.appendingPathComponent("DraftBarAppIcon.svg"), atomically: true, encoding: .utf8)
+try statusHiddenSVG.write(to: sourceDir.appendingPathComponent("DraftBarStatusBarIconHidden.svg"), atomically: true, encoding: .utf8)
+try statusVisibleSVG.write(to: sourceDir.appendingPathComponent("DraftBarStatusBarIconVisible.svg"), atomically: true, encoding: .utf8)
 
 for spec in appIconSpecs {
     try writePNG(drawAppIcon(pixels: spec.pixels), to: appIconDir.appendingPathComponent(spec.filename))
@@ -281,8 +281,8 @@ try writeJSON(statusContents(baseName: "StatusBarIconVisible"), to: statusVisibl
 Run:
 
 ```bash
-git rm -r MenuBarMemo/Assets.xcassets/StatusBarIcon.imageset
-git rm IconSource/MenuBarMemoStatusBarIcon.svg
+git rm -r DraftBar/Assets.xcassets/StatusBarIcon.imageset
+git rm IconSource/DraftBarStatusBarIcon.svg
 ```
 
 Expected: Git stages the old single-state asset and SVG for deletion.
@@ -298,7 +298,7 @@ Scripts/generate_icon_assets.swift
 Expected:
 
 ```text
-Generated MenuBarMemo icon assets
+Generated DraftBar icon assets
 ```
 
 - [ ] **Step 6: Verify asset validation passes**
@@ -320,7 +320,7 @@ Icon asset validation passed
 Run:
 
 ```bash
-git add Scripts/generate_icon_assets.swift Scripts/validate_icon_assets.swift IconSource MenuBarMemo/Assets.xcassets
+git add Scripts/generate_icon_assets.swift Scripts/validate_icon_assets.swift IconSource DraftBar/Assets.xcassets
 git commit -m "design: add status icon state assets"
 ```
 
@@ -332,8 +332,8 @@ Expected: commit succeeds with only icon asset and icon script changes.
 
 **Files:**
 - Modify: `Scripts/validate_icon_assets.swift`
-- Modify: `MenuBarMemo/MenuBarMemoApp.swift`
-- Modify: `MenuBarMemo/ContentView.swift`
+- Modify: `DraftBar/DraftBarApp.swift`
+- Modify: `DraftBar/ContentView.swift`
 
 - [ ] **Step 1: Add app wiring checks to the validator**
 
@@ -341,7 +341,7 @@ In `Scripts/validate_icon_assets.swift`, add this function after `validateStatus
 
 ```swift
 func validateStatusIconAppWiring() {
-    let appSource = textFile("MenuBarMemo/MenuBarMemoApp.swift")
+    let appSource = textFile("DraftBar/DraftBarApp.swift")
     guard appSource.contains("private enum StatusItemIconState") else {
         fail("AppDelegate must define StatusItemIconState")
     }
@@ -358,7 +358,7 @@ func validateStatusIconAppWiring() {
         fail("closeFloatingNote must switch back to the hidden icon after the panel orders out")
     }
 
-    let contentSource = textFile("MenuBarMemo/ContentView.swift")
+    let contentSource = textFile("DraftBar/ContentView.swift")
     guard contentSource.contains("Image(\"StatusBarIconHidden\")") else {
         fail("Drag seed icon must use StatusBarIconHidden")
     }
@@ -385,9 +385,9 @@ Expected: exit code `1` with:
 AppDelegate must define StatusItemIconState
 ```
 
-- [ ] **Step 3: Add status icon state loading to `MenuBarMemoApp.swift`**
+- [ ] **Step 3: Add status icon state loading to `DraftBarApp.swift`**
 
-In `MenuBarMemo/MenuBarMemoApp.swift`, add this enum above `final class AppDelegate`:
+In `DraftBar/DraftBarApp.swift`, add this enum above `final class AppDelegate`:
 
 ```swift
 private enum StatusItemIconState {
@@ -411,7 +411,7 @@ Inside `AppDelegate`, add this helper near `configureStatusItem()`:
 private func updateStatusItemIcon(_ state: StatusItemIconState) {
     guard let button = statusItem?.button else { return }
     let image = NSImage(named: state.assetName)
-        ?? NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "MenuBarMemo")
+        ?? NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "DraftBar")
     image?.isTemplate = true
     button.image = image
 }
@@ -421,7 +421,7 @@ In `configureStatusItem()`, replace:
 
 ```swift
 let image = NSImage(named: "StatusBarIcon")
-    ?? NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "MenuBarMemo")
+    ?? NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "DraftBar")
 image?.isTemplate = true
 button.image = image
 ```
@@ -490,7 +490,7 @@ self.updateStatusItemIcon(.hidden)
 
 - [ ] **Step 6: Update the drag seed icon asset name**
 
-In `MenuBarMemo/ContentView.swift`, replace:
+In `DraftBar/ContentView.swift`, replace:
 
 ```swift
 Image("StatusBarIcon")
@@ -521,7 +521,7 @@ Icon asset validation passed
 Run:
 
 ```bash
-git add Scripts/validate_icon_assets.swift MenuBarMemo/MenuBarMemoApp.swift MenuBarMemo/ContentView.swift
+git add Scripts/validate_icon_assets.swift DraftBar/DraftBarApp.swift DraftBar/ContentView.swift
 git commit -m "feat: switch status icon by note visibility"
 ```
 
@@ -533,7 +533,7 @@ Expected: commit succeeds with only app wiring and validator changes.
 
 **Files:**
 - Read: `git status`
-- Build: `MenuBarMemo.xcodeproj`
+- Build: `DraftBar.xcodeproj`
 
 - [ ] **Step 1: Verify the validator still passes after both commits**
 
@@ -554,7 +554,7 @@ Icon asset validation passed
 Run:
 
 ```bash
-xcodebuild -project MenuBarMemo.xcodeproj -scheme MenuBarMemo -destination platform=macOS -derivedDataPath /private/tmp/MenuBarMemoStatusIconStatesDerivedData -clonedSourcePackagesDirPath /private/tmp/MenuBarMemoBaselineSourcePackages build
+xcodebuild -project DraftBar.xcodeproj -scheme DraftBar -destination platform=macOS -derivedDataPath /private/tmp/DraftBarStatusIconStatesDerivedData -clonedSourcePackagesDirPath /private/tmp/DraftBarBaselineSourcePackages build
 ```
 
 Expected: command exits `0` and prints:

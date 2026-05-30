@@ -1,6 +1,6 @@
 //
-//  MenuBarMemoApp.swift
-//  MenuBarMemo
+//  DraftBarApp.swift
+//  DraftBar
 //
 //  Created by 丁泓景 on 2026/5/28.
 //
@@ -10,10 +10,10 @@ import AppKit
 import QuartzCore
 import Darwin
 
-#if !MENU_BAR_MEMO_TESTING
+#if !DRAFTBAR_TESTING
 @main
 #endif
-struct MenuBarMemoApp: App {
+struct DraftBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     init() {
@@ -56,7 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private let defaultPanelSize = NSSize(width: 420, height: 520)
     private let normalMinimumPanelSize = NSSize(width: 320, height: 260)
-    private let statusDebugEnabled = ProcessInfo.processInfo.environment["MENUBARMEMO_DEBUG_STATUS"] == "1"
+    private let statusDebugEnabled = ProcessInfo.processInfo.environment["DRAFTBAR_DEBUG_STATUS"] == "1"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -74,7 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         guard let button = item.button else { return }
         updateStatusItemIcon(.hidden)
-        button.toolTip = "MenuBarMemo"
+        button.toolTip = "DraftBar"
         button.target = self
         button.action = #selector(statusItemPressed(_:))
         button.sendAction(on: [.leftMouseDown, .rightMouseDown])
@@ -87,7 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func updateStatusItemIcon(_ state: StatusItemIconState) {
         guard let button = statusItem?.button else { return }
         let image = NSImage(named: state.assetName)
-            ?? NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "MenuBarMemo")
+            ?? NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "DraftBar")
         image?.isTemplate = true
         button.image = image
     }
@@ -487,7 +487,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func debugStatusLog(_ message: String) {
         guard statusDebugEnabled else { return }
-        print("MenuBarMemoStatusDebug: \(message)")
+        print("DraftBarStatusDebug: \(message)")
         fflush(stdout)
     }
 }

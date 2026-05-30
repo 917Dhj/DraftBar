@@ -12,7 +12,7 @@ struct AppIconSpec {
 
 let root = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
 let fileManager = FileManager.default
-let appRoot = root.appendingPathComponent("MenuBarMemo", isDirectory: true)
+let appRoot = root.appendingPathComponent("DraftBar", isDirectory: true)
 let appIconDir = appRoot.appendingPathComponent("Assets.xcassets/AppIcon.appiconset", isDirectory: true)
 let statusHiddenIconDir = appRoot.appendingPathComponent("Assets.xcassets/StatusBarIconHidden.imageset", isDirectory: true)
 let statusVisibleIconDir = appRoot.appendingPathComponent("Assets.xcassets/StatusBarIconVisible.imageset", isDirectory: true)
@@ -23,9 +23,9 @@ func fail(_ message: String) -> Never {
     exit(1)
 }
 
-guard fileManager.fileExists(atPath: root.appendingPathComponent("MenuBarMemo.xcodeproj").path),
+guard fileManager.fileExists(atPath: root.appendingPathComponent("DraftBar.xcodeproj").path),
       fileManager.fileExists(atPath: appRoot.appendingPathComponent("Assets.xcassets").path) else {
-    fail("Run Scripts/generate_icon_assets.swift from the repository root containing MenuBarMemo.xcodeproj and MenuBarMemo/Assets.xcassets.")
+    fail("Run Scripts/generate_icon_assets.swift from the repository root containing DraftBar.xcodeproj and DraftBar/Assets.xcassets.")
 }
 
 let appIconSpecs = [
@@ -342,9 +342,9 @@ try fileManager.createDirectory(at: statusHiddenIconDir, withIntermediateDirecto
 try fileManager.createDirectory(at: statusVisibleIconDir, withIntermediateDirectories: true)
 try fileManager.createDirectory(at: sourceDir, withIntermediateDirectories: true)
 
-try appSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoAppIcon.svg"), atomically: true, encoding: .utf8)
-try statusHiddenSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoStatusBarIconHidden.svg"), atomically: true, encoding: .utf8)
-try statusVisibleSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoStatusBarIconVisible.svg"), atomically: true, encoding: .utf8)
+try appSVG.write(to: sourceDir.appendingPathComponent("DraftBarAppIcon.svg"), atomically: true, encoding: .utf8)
+try statusHiddenSVG.write(to: sourceDir.appendingPathComponent("DraftBarStatusBarIconHidden.svg"), atomically: true, encoding: .utf8)
+try statusVisibleSVG.write(to: sourceDir.appendingPathComponent("DraftBarStatusBarIconVisible.svg"), atomically: true, encoding: .utf8)
 
 for spec in appIconSpecs {
     try writePNG(drawAppIcon(pixels: spec.pixels), to: appIconDir.appendingPathComponent(spec.filename))
@@ -397,4 +397,4 @@ try writeJSON(appIconContents, to: appIconDir.appendingPathComponent("Contents.j
 try writeJSON(statusContents(baseName: "StatusBarIconHidden"), to: statusHiddenIconDir.appendingPathComponent("Contents.json"))
 try writeJSON(statusContents(baseName: "StatusBarIconVisible"), to: statusVisibleIconDir.appendingPathComponent("Contents.json"))
 
-print("Generated MenuBarMemo icon assets")
+print("Generated DraftBar icon assets")

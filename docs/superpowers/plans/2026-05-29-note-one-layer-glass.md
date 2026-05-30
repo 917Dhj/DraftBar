@@ -126,7 +126,7 @@ static let placeholderLeadingPadding: CGFloat = 24
 Run from the Xcode project root:
 
 ```bash
-xcodebuild -scheme MenuBarMemo -configuration Debug build
+xcodebuild -scheme DraftBar -configuration Debug build
 ```
 
 Expected: build succeeds.

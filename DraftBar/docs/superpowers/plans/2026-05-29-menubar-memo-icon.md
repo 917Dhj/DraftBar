@@ -1,8 +1,8 @@
-# MenuBarMemo Icon Implementation Plan
+# DraftBar Icon Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Generate and wire a first-version MenuBarMemo app icon plus matching menu bar template icon from the approved design spec.
+**Goal:** Generate and wire a first-version DraftBar app icon plus matching menu bar template icon from the approved design spec.
 
 **Architecture:** Keep icon production deterministic by adding checked-in Swift scripts that generate PNG assets from CoreGraphics drawing commands. Store editable source SVGs under `IconSource/`, generated runtime assets under `Assets.xcassets/`, and keep app code changes limited to status item image lookup plus the drag seed icon.
 
@@ -16,9 +16,9 @@
   - Validates generated PNG existence, pixel dimensions, app icon JSON filenames, and status icon template metadata.
 - Create: `Scripts/generate_icon_assets.swift`
   - Generates editable SVG source files and raster PNG assets for app icon and status bar icon.
-- Create: `IconSource/MenuBarMemoAppIcon.svg`
+- Create: `IconSource/DraftBarAppIcon.svg`
   - Editable vector source for the App icon.
-- Create: `IconSource/MenuBarMemoStatusBarIcon.svg`
+- Create: `IconSource/DraftBarStatusBarIcon.svg`
   - Editable vector source for the template status icon.
 - Modify: `Assets.xcassets/AppIcon.appiconset/Contents.json`
   - Adds filenames for all macOS app icon slots.
@@ -30,7 +30,7 @@
   - 18x18 template PNG for menu bar 1x.
 - Create: `Assets.xcassets/StatusBarIcon.imageset/StatusBarIcon@2x.png`
   - 36x36 template PNG for menu bar 2x.
-- Modify: `MenuBarMemoApp.swift`
+- Modify: `DraftBarApp.swift`
   - Loads `StatusBarIcon` from the asset catalog, keeps `square.and.pencil` fallback.
 - Modify: `ContentView.swift`
   - Uses the same `StatusBarIcon` for the drag seed preview instead of the SF Symbol.
@@ -151,8 +151,8 @@ guard properties?["template-rendering-intent"] as? String == "template" else {
     fail("StatusBarIcon.imageset must set template-rendering-intent to template")
 }
 
-_ = requireFile("IconSource/MenuBarMemoAppIcon.svg")
-_ = requireFile("IconSource/MenuBarMemoStatusBarIcon.svg")
+_ = requireFile("IconSource/DraftBarAppIcon.svg")
+_ = requireFile("IconSource/DraftBarStatusBarIcon.svg")
 
 print("Icon asset validation passed")
 ```
@@ -192,8 +192,8 @@ Expected: commit succeeds.
 
 **Files:**
 - Create: `Scripts/generate_icon_assets.swift`
-- Create: `IconSource/MenuBarMemoAppIcon.svg`
-- Create: `IconSource/MenuBarMemoStatusBarIcon.svg`
+- Create: `IconSource/DraftBarAppIcon.svg`
+- Create: `IconSource/DraftBarStatusBarIcon.svg`
 - Modify: `Assets.xcassets/AppIcon.appiconset/Contents.json`
 - Create: `Assets.xcassets/AppIcon.appiconset/*.png`
 - Create: `Assets.xcassets/StatusBarIcon.imageset/Contents.json`
@@ -455,8 +455,8 @@ try fileManager.createDirectory(at: appIconDir, withIntermediateDirectories: tru
 try fileManager.createDirectory(at: statusIconDir, withIntermediateDirectories: true)
 try fileManager.createDirectory(at: sourceDir, withIntermediateDirectories: true)
 
-try appSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoAppIcon.svg"), atomically: true, encoding: .utf8)
-try statusSVG.write(to: sourceDir.appendingPathComponent("MenuBarMemoStatusBarIcon.svg"), atomically: true, encoding: .utf8)
+try appSVG.write(to: sourceDir.appendingPathComponent("DraftBarAppIcon.svg"), atomically: true, encoding: .utf8)
+try statusSVG.write(to: sourceDir.appendingPathComponent("DraftBarStatusBarIcon.svg"), atomically: true, encoding: .utf8)
 
 for spec in appIconSpecs {
     try writePNG(drawAppIcon(pixels: spec.pixels), to: appIconDir.appendingPathComponent(spec.filename))
@@ -507,7 +507,7 @@ try JSONSerialization.data(withJSONObject: appIconContents, options: jsonOptions
 try JSONSerialization.data(withJSONObject: statusContents, options: jsonOptions)
     .write(to: statusIconDir.appendingPathComponent("Contents.json"))
 
-print("Generated MenuBarMemo icon assets")
+print("Generated DraftBar icon assets")
 ```
 
 - [ ] **Step 2: Make the generator executable**
@@ -528,7 +528,7 @@ Run:
 Scripts/generate_icon_assets.swift
 ```
 
-Expected: prints `Generated MenuBarMemo icon assets`.
+Expected: prints `Generated DraftBar icon assets`.
 
 - [ ] **Step 4: Run the validator and verify it passes**
 
@@ -548,7 +548,7 @@ Run:
 find IconSource Assets.xcassets/AppIcon.appiconset Assets.xcassets/StatusBarIcon.imageset -maxdepth 1 -type f | sort
 ```
 
-Expected: output includes `IconSource/MenuBarMemoAppIcon.svg`, `IconSource/MenuBarMemoStatusBarIcon.svg`, ten `AppIcon-*.png` files, both status PNGs, and both `Contents.json` files.
+Expected: output includes `IconSource/DraftBarAppIcon.svg`, `IconSource/DraftBarStatusBarIcon.svg`, ten `AppIcon-*.png` files, both status PNGs, and both `Contents.json` files.
 
 - [ ] **Step 6: Commit generated assets and scripts**
 
@@ -556,7 +556,7 @@ Run:
 
 ```bash
 git add Scripts/generate_icon_assets.swift IconSource Assets.xcassets/AppIcon.appiconset Assets.xcassets/StatusBarIcon.imageset
-git commit -m "design: generate MenuBarMemo icon assets"
+git commit -m "design: generate DraftBar icon assets"
 ```
 
 Expected: commit succeeds.
@@ -564,16 +564,16 @@ Expected: commit succeeds.
 ## Task 3: Wire Custom Status Icon In App Code
 
 **Files:**
-- Modify: `MenuBarMemoApp.swift`
+- Modify: `DraftBarApp.swift`
 - Modify: `ContentView.swift`
 
 - [ ] **Step 1: Replace the status item image lookup**
 
-In `MenuBarMemoApp.swift`, replace the image setup inside `configureStatusItem()` with:
+In `DraftBarApp.swift`, replace the image setup inside `configureStatusItem()` with:
 
 ```swift
         let image = NSImage(named: "StatusBarIcon")
-            ?? NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "MenuBarMemo")
+            ?? NSImage(systemSymbolName: "square.and.pencil", accessibilityDescription: "DraftBar")
         image?.isTemplate = true
         button.image = image
 ```
@@ -623,7 +623,7 @@ Expected: `FloatingNoteView` still compiles, and the drag seed uses the same ico
 Run:
 
 ```bash
-xcodebuild -project ../MenuBarMemo.xcodeproj -scheme MenuBarMemo -destination 'platform=macOS' -derivedDataPath /private/tmp/MenuBarMemoDerivedData -clonedSourcePackagesDirPath /private/tmp/MenuBarMemoSourcePackages build
+xcodebuild -project ../DraftBar.xcodeproj -scheme DraftBar -destination 'platform=macOS' -derivedDataPath /private/tmp/DraftBarDerivedData -clonedSourcePackagesDirPath /private/tmp/DraftBarSourcePackages build
 ```
 
 Expected: `** BUILD SUCCEEDED **`.
@@ -643,7 +643,7 @@ Expected: prints `Icon asset validation passed`.
 Run:
 
 ```bash
-git add MenuBarMemoApp.swift ContentView.swift
+git add DraftBarApp.swift ContentView.swift
 git commit -m "feat: use custom menu bar icon"
 ```
 
@@ -689,7 +689,7 @@ Expected: prints `Icon asset validation passed`.
 Run:
 
 ```bash
-xcodebuild -project ../MenuBarMemo.xcodeproj -scheme MenuBarMemo -destination 'platform=macOS' -derivedDataPath /private/tmp/MenuBarMemoIconFinalBuild -clonedSourcePackagesDirPath /private/tmp/MenuBarMemoIconSourcePackages build
+xcodebuild -project ../DraftBar.xcodeproj -scheme DraftBar -destination 'platform=macOS' -derivedDataPath /private/tmp/DraftBarIconFinalBuild -clonedSourcePackagesDirPath /private/tmp/DraftBarIconSourcePackages build
 ```
 
 Expected: `** BUILD SUCCEEDED **`.
@@ -720,4 +720,4 @@ Run:
 git log --oneline -3
 ```
 
-Expected: top commits include `feat: use custom menu bar icon`, `design: generate MenuBarMemo icon assets`, and `test: add icon asset validator`.
+Expected: top commits include `feat: use custom menu bar icon`, `design: generate DraftBar icon assets`, and `test: add icon asset validator`.

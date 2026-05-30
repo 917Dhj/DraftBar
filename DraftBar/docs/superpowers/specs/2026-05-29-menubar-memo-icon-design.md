@@ -1,10 +1,10 @@
-# MenuBarMemo 图标设计规格
+# DraftBar 图标设计规格
 
 日期：2026-05-29
 
 ## 1. 背景
 
-MenuBarMemo 是一个 macOS 菜单栏 Markdown 备忘录 app。核心体验是从菜单栏快速唤出一张可输入的草稿纸，稳定记录中文和 Markdown 文本。
+DraftBar 是一个 macOS 菜单栏 Markdown 备忘录 app。核心体验是从菜单栏快速唤出一张可输入的草稿纸，稳定记录中文和 Markdown 文本。
 
 当前工程里的 `AppIcon.appiconset` 仍是空占位，菜单栏状态项暂用 SF Symbol `square.and.pencil`。本规格定义第一版图标方向，用于后续生成 App 图标和菜单栏 template 图标。
 
