@@ -2,7 +2,7 @@
 //  ContentView.swift
 //  DraftBar
 //
-//  Created by 丁泓景 on 2026/5/28.
+//  Created by 917Dhj on 2026/5/28.
 //
 
 import SwiftUI
@@ -226,7 +226,11 @@ final class MemoStore: NSObject, ObservableObject {
 
     private static func legacyNoteURLs(baseURL: URL) -> [URL] {
         let homeURL = URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+        let legacyDraftBarBundleID = "com.dinghongjing" + ".DraftBar"
         let candidates = [
+            homeURL
+                .appendingPathComponent("Library/Containers/\(legacyDraftBarBundleID)/Data/Library/Application Support/DraftBar", isDirectory: true)
+                .appendingPathComponent("note.md"),
             baseURL
                 .appendingPathComponent("MenuBarMemo", isDirectory: true)
                 .appendingPathComponent("note.md"),
