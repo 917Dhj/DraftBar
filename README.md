@@ -18,9 +18,9 @@ DraftBar lives in your menu bar, ready when you need to jot something down witho
 
 Open DraftBar from the menu bar, capture a thought, then get back to what you were doing. You can also drag from the menu bar icon to place the note where it feels natural.
 
-![DraftBar quick capture demo](assets/demo-fast-capture.gif)
-
-![DraftBar editor detail](assets/demo-editor-detail.png)
+| Quick capture | Editor detail |
+| --- | --- |
+| <img src="assets/demo-fast-capture.gif" alt="DraftBar quick capture demo" width="460"> | <img src="assets/demo-editor-detail.png" alt="DraftBar editor detail" width="320"> |
 
 ## Features
 
