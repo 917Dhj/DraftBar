@@ -6,6 +6,10 @@
 
 macOS 菜单栏里的随手草稿纸。
 
+<p align="center">
+  <img src="assets/app-icon.png" alt="DraftBar" width="128">
+</p>
+
 [![macOS](https://img.shields.io/badge/macOS-Sequoia%2015%2B-111111?logo=apple&logoColor=white)](https://www.apple.com/macos/)
 [![最新版本](https://img.shields.io/github/v/release/917Dhj/DraftBar?label=release)](https://github.com/917Dhj/DraftBar/releases/latest)
 [![许可证：MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
