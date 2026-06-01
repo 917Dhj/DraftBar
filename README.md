@@ -6,7 +6,7 @@
 
 A tiny menu bar scratchpad for quick drafts on macOS.
 
-[![macOS](https://img.shields.io/badge/macOS-26.5%2B-111111?logo=apple&logoColor=white)](https://www.apple.com/macos/)
+[![macOS](https://img.shields.io/badge/macOS-Sequoia%2015%2B-111111?logo=apple&logoColor=white)](https://www.apple.com/macos/)
 [![Latest Release](https://img.shields.io/github/v/release/917Dhj/DraftBar?label=release)](https://github.com/917Dhj/DraftBar/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
