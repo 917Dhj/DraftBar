@@ -55,7 +55,6 @@ There is no account, no cloud sync, and no tracking.
 
 ## Roadmap
 
-- Real demo assets for the README
 - Release packaging polish, such as signing and notarization, if needed
 - More editor polish around Markdown workflows
 

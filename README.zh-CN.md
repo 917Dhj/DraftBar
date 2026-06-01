@@ -55,7 +55,6 @@ DraftBar 会把草稿作为 Markdown 文件保存在本地：
 
 ## 路线图
 
-- 为 README 补充真实截图和短 GIF
 - 按需要完善签名、公证等 release 打包细节
 - 继续打磨 Markdown 编辑体验
 
