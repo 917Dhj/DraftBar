@@ -930,9 +930,15 @@ enum MarkdownStyleResolver {
             return []
         }
 
+        var delimiterLength = level
+        while delimiterLength < line.length,
+              CharacterSet.whitespaces.contains(UnicodeScalar(line.character(at: delimiterLength)) ?? " ") {
+            delimiterLength += 1
+        }
+
         return [
             MarkdownStyleSpan(kind: .headingLine(level: level), range: lineRange),
-            MarkdownStyleSpan(kind: .markdownDelimiter, range: NSRange(location: lineRange.location, length: level))
+            MarkdownStyleSpan(kind: .markdownDelimiter, range: NSRange(location: lineRange.location, length: delimiterLength))
         ]
     }
 
@@ -1289,6 +1295,7 @@ enum MarkdownTextStyler {
         formulaOverlayController: MarkdownFormulaOverlayController? = nil
     ) {
         guard !textView.hasMarkedText(), let textStorage = textView.textStorage else {
+            refreshLayoutMetadata(in: textView, glyphHider: glyphHider)
             updateTypingAttributes(for: textView)
             return
         }
@@ -1334,6 +1341,27 @@ enum MarkdownTextStyler {
         }
         formulaOverlayController?.update(in: textView, spans: formulaRenderSpans)
         updateTypingAttributes(for: textView)
+    }
+
+    static func refreshLayoutMetadata(in textView: NSTextView, glyphHider: MarkdownLayoutManager? = nil) {
+        let nsText = textView.string as NSString
+        let fullRange = NSRange(location: 0, length: nsText.length)
+        guard fullRange.length > 0 else {
+            glyphHider?.update(hiddenRanges: [], blockBackgroundRanges: [])
+            return
+        }
+
+        let selectedLocation = textView.selectedRanges.first?.rangeValue.location ?? textView.selectedRange().location
+        let spans = MarkdownStyleResolver.spans(in: textView.string, activeLocation: selectedLocation)
+        let hiddenRanges = spans.compactMap { span -> NSRange? in
+            isHiddenMarkdownStyle(span.kind) ? span.range : nil
+        }
+        let blockBackgroundRanges = spans.compactMap { span -> NSRange? in
+            isBlockBackgroundStyle(span.kind) ? span.range : nil
+        }
+        glyphHider?.update(hiddenRanges: hiddenRanges, blockBackgroundRanges: blockBackgroundRanges)
+        textView.layoutManager?.invalidateGlyphs(forCharacterRange: fullRange, changeInLength: 0, actualCharacterRange: nil)
+        textView.layoutManager?.invalidateLayout(forCharacterRange: fullRange, actualCharacterRange: nil)
     }
 
     static func updateTypingAttributes(for textView: NSTextView) {
@@ -2229,7 +2257,7 @@ struct MarkdownTextView: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             guard let textView = notification.object as? NSTextView else { return }
             guard !textView.hasMarkedText() else {
-                MarkdownTextStyler.updateTypingAttributes(for: textView)
+                refreshMarkdown(in: textView)
                 return
             }
             text = textView.string
