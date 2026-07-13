@@ -306,7 +306,11 @@ struct FloatingNoteView: View {
 
     private var editorContent: some View {
         ZStack(alignment: .topLeading) {
-            MarkdownTextView(text: $store.text, focusRequestID: focusController.requestID)
+            MarkdownTextView(
+                text: $store.text,
+                focusRequestID: focusController.requestID,
+                imageBaseURL: store.noteURL.deletingLastPathComponent()
+            )
                 .padding(.horizontal, Self.editorHorizontalPadding)
                 .padding(.bottom, 8)
 
@@ -430,11 +434,15 @@ struct WindowDragHandle: NSViewRepresentable {
 }
 
 struct MarkdownTextView: View {
-    private static let configuration: MarkdownEditorConfiguration = {
+    private static let syntaxHighlighter = HighlighterSwiftBridge()
+    private static let latexRenderer = SwiftMathBridge()
+
+    private var configuration: MarkdownEditorConfiguration {
         var configuration = MarkdownEditorConfiguration.default
         configuration.services = MarkdownEditorServices(
-            syntaxHighlighter: HighlighterSwiftBridge(),
-            latex: SwiftMathBridge()
+            images: LocalMarkdownImageProvider(baseURL: imageBaseURL),
+            syntaxHighlighter: Self.syntaxHighlighter,
+            latex: Self.latexRenderer
         )
         configuration.safeAreaInsets = SafeAreaInsets(top: 54)
         configuration.textInsets = TextInsets(horizontal: 23, vertical: 4)
@@ -445,7 +453,7 @@ struct MarkdownTextView: View {
             automaticSpellingCorrection: false
         )
         return configuration
-    }()
+    }
 
     private static let placeholder = NSAttributedString(
         string: "写点什么...",
@@ -457,16 +465,38 @@ struct MarkdownTextView: View {
 
     @Binding var text: String
     let focusRequestID: Int
+    let imageBaseURL: URL
 
     var body: some View {
         NativeTextViewWrapper(
             text: $text,
-            configuration: Self.configuration,
+            configuration: configuration,
             fontSize: 15,
             documentId: "draftbar-single-draft",
             placeholder: Self.placeholder
         )
         .background(MarkdownTextPreferencesBridge(focusRequestID: focusRequestID))
+    }
+}
+
+private struct LocalMarkdownImageProvider: EmbeddedImageProvider {
+    let baseURL: URL
+
+    func image(for reference: EmbeddedImageRequest) -> NSImage? {
+        guard let url = localURL(for: reference.name) else { return nil }
+        return NSImage(contentsOf: url)
+    }
+
+    func fingerprint() -> AnyHashable {
+        baseURL.standardizedFileURL.path
+    }
+
+    private func localURL(for path: String) -> URL? {
+        if let url = URL(string: path, relativeTo: baseURL), url.isFileURL {
+            return url.standardizedFileURL
+        }
+        guard path.hasPrefix("/") else { return nil }
+        return URL(fileURLWithPath: path).standardizedFileURL
     }
 }
 
@@ -487,6 +517,14 @@ private struct MarkdownTextPreferencesBridge: NSViewRepresentable {
     final class ProbeView: NSView {
         var focusRequestID = 0
         private var appliedFocusRequestID = -1
+        private weak var observedTextView: NSTextView?
+        private var selectionObserver: NSObjectProtocol?
+
+        deinit {
+            if let selectionObserver {
+                NotificationCenter.default.removeObserver(selectionObserver)
+            }
+        }
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -497,21 +535,13 @@ private struct MarkdownTextPreferencesBridge: NSViewRepresentable {
             DispatchQueue.main.async { [weak self] in
                 guard let self, let textView = self.findEditorTextView() else { return }
 
-                textView.backgroundColor = .clear
-                textView.drawsBackground = false
-                textView.insertionPointColor = .controlAccentColor
-                textView.isAutomaticQuoteSubstitutionEnabled = false
-                textView.isAutomaticDashSubstitutionEnabled = false
-                textView.isAutomaticTextReplacementEnabled = false
-                textView.isAutomaticSpellingCorrectionEnabled = false
-                textView.isAutomaticDataDetectionEnabled = false
-                textView.isContinuousSpellCheckingEnabled = false
-                textView.isGrammarCheckingEnabled = false
-                textView.usesFindPanel = true
+                self.observeSelectionChanges(in: textView)
+                self.applyTextPreferences(to: textView)
 
                 guard self.appliedFocusRequestID != self.focusRequestID else { return }
+                guard let window = textView.window,
+                      window.makeFirstResponder(textView) else { return }
                 self.appliedFocusRequestID = self.focusRequestID
-                textView.window?.makeFirstResponder(textView)
             }
         }
 
@@ -524,6 +554,38 @@ private struct MarkdownTextPreferencesBridge: NSViewRepresentable {
                 ancestor = view.superview
             }
             return nil
+        }
+
+        private func observeSelectionChanges(in textView: NSTextView) {
+            guard observedTextView !== textView else { return }
+            if let selectionObserver {
+                NotificationCenter.default.removeObserver(selectionObserver)
+            }
+            observedTextView = textView
+            selectionObserver = NotificationCenter.default.addObserver(
+                forName: NSTextView.didChangeSelectionNotification,
+                object: textView,
+                queue: .main
+            ) { [weak self, weak textView] _ in
+                DispatchQueue.main.async {
+                    guard let self, let textView else { return }
+                    self.applyTextPreferences(to: textView)
+                }
+            }
+        }
+
+        private func applyTextPreferences(to textView: NSTextView) {
+            textView.backgroundColor = .clear
+            textView.drawsBackground = false
+            textView.insertionPointColor = .controlAccentColor
+            textView.isAutomaticQuoteSubstitutionEnabled = false
+            textView.isAutomaticDashSubstitutionEnabled = false
+            textView.isAutomaticTextReplacementEnabled = false
+            textView.isAutomaticSpellingCorrectionEnabled = false
+            textView.isAutomaticDataDetectionEnabled = false
+            textView.isContinuousSpellCheckingEnabled = false
+            textView.isGrammarCheckingEnabled = false
+            textView.usesFindPanel = true
         }
 
         private static func firstTextView(in view: NSView) -> NSTextView? {
