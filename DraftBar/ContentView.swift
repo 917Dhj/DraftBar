@@ -90,10 +90,6 @@ enum FloatingNoteLayout {
         return smoothstep((clampedProgress - revealStart) / (1 - revealStart))
     }
 
-    static func dragShadowRadius(forDragProgress progress: CGFloat) -> CGFloat {
-        interpolate(from: 8, to: 24, progress: smoothstep(min(max(progress, 0), 1)))
-    }
-
     static func dragSeedIconOpacity(forDragProgress progress: CGFloat) -> CGFloat {
         1 - contentRevealProgress(forDragProgress: progress)
     }
@@ -1974,22 +1970,8 @@ struct FloatingNoteView: View {
             : 24
     }
 
-    private var shadowRadius: CGFloat {
-        visualState.isDraggingFromStatusItem
-            ? FloatingNoteLayout.dragShadowRadius(forDragProgress: visualState.dragProgress)
-            : 18
-    }
-
-    private var shadowOpacity: CGFloat {
-        visualState.isDraggingFromStatusItem
-            ? 0.10 + 0.12 * min(max(visualState.dragProgress, 0), 1)
-            : 0.18
-    }
-
     var body: some View {
         ZStack {
-            noteBackground
-
             dragSeedIcon
                 .opacity(dragSeedOpacity)
                 .allowsHitTesting(false)
@@ -2004,6 +1986,10 @@ struct FloatingNoteView: View {
             idealWidth: 420,
             minHeight: visualState.isDraggingFromStatusItem ? 0 : 260,
             idealHeight: 520
+        )
+        .glassEffect(
+            .regular,
+            in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         )
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .animation(.easeOut(duration: 0.08), value: visualState.dragProgress)
@@ -2026,16 +2012,6 @@ struct FloatingNoteView: View {
 
             floatingControls
         }
-    }
-
-    private var noteBackground: some View {
-        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(.ultraThinMaterial)
-            .overlay {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .stroke(.white.opacity(0.30), lineWidth: 1)
-            }
-            .shadow(color: .black.opacity(shadowOpacity), radius: shadowRadius, y: 6)
     }
 
     private var dragSeedIcon: some View {

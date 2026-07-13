@@ -11,7 +11,7 @@ A tiny menu bar scratchpad for quick drafts on macOS. ✏️
 </p>
 
 <p align="center">
-  <a href="https://www.apple.com/macos/"><img src="https://img.shields.io/badge/macOS-Sequoia%2015%2B-111111?logo=apple&logoColor=white" alt="macOS"></a>
+  <a href="https://www.apple.com/macos/"><img src="https://img.shields.io/badge/macOS-Tahoe%2026%2B-111111?logo=apple&logoColor=white" alt="macOS"></a>
   <a href="https://github.com/917Dhj/DraftBar/releases/latest"><img src="https://img.shields.io/github/v/release/917Dhj/DraftBar?label=release" alt="Latest Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
 </p>

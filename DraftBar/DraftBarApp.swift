@@ -319,7 +319,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         panel.delegate = self
         applyPinnedLevel(to: panel)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.isMovableByWindowBackground = true
         panel.isReleasedWhenClosed = false
         panel.hidesOnDeactivate = false
         panel.titleVisibility = .hidden
