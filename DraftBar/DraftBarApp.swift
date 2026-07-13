@@ -215,6 +215,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         debugStatusLog("beginDrag at=\(screenPoint)")
         dragAnchorFrame = statusButtonScreenFrame()?.insetBy(dx: -6, dy: -6)
         dragPanelSize = lastFloatingFrame?.size ?? defaultPanelSize
+        visualState.dragPanelSize = dragPanelSize ?? defaultPanelSize
         let panel = ensureNotePanel()
         if !panel.isVisible {
             panel.minSize = FloatingNoteLayout.dragSeedSize
@@ -227,7 +228,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         debugStatusLog("updateDrag at=\(screenPoint)")
         guard let panel = notePanel else { return }
         let panelSize = dragPanelSize ?? panel.frame.size
-        panel.setFrame(dragPresentationFrame(for: screenPoint, panelSize: panelSize), display: true)
+        panel.setFrameOrigin(dragPresentationFrame(for: screenPoint, panelSize: panelSize).origin)
         panel.alphaValue = dragAlpha(for: screenPoint)
         updateDragVisualState(for: screenPoint, isDragging: true)
     }
@@ -259,11 +260,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let frame = dragPresentationFrame(for: screenPoint, panelSize: panelSize)
         let alpha = dragAlpha(for: screenPoint)
 
-        if !wasVisible, let dragAnchorFrame {
-            panel.alphaValue = 0.14
-            panel.setFrame(FloatingNoteLayout.dragSeedFrame(from: dragAnchorFrame), display: false)
+        if !wasVisible {
+            panel.alphaValue = alpha
+            panel.setFrame(frame, display: false)
             panel.makeKeyAndOrderFront(nil)
-            animate(panel: panel, to: frame, alpha: alpha, duration: 0.11, timingFunctionName: .easeOut)
         } else {
             panel.alphaValue = alpha
             panel.setFrame(frame, display: true)
@@ -361,11 +361,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func updateDragVisualState(for screenPoint: NSPoint, isDragging: Bool) {
-        visualState.isDraggingFromStatusItem = isDragging
+        if visualState.isDraggingFromStatusItem != isDragging {
+            visualState.isDraggingFromStatusItem = isDragging
+        }
+
+        let progress: CGFloat
         if let dragAnchorFrame {
-            visualState.dragProgress = FloatingNoteLayout.dragProgress(from: dragAnchorFrame, to: screenPoint)
+            progress = FloatingNoteLayout.dragProgress(from: dragAnchorFrame, to: screenPoint)
         } else {
-            visualState.dragProgress = isDragging ? 0 : 1
+            progress = isDragging ? 0 : 1
+        }
+        if visualState.dragProgress != progress {
+            visualState.dragProgress = progress
         }
     }
 
@@ -420,11 +427,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             )
         }
 
-        return FloatingNoteLayout.emergingDragFrame(
+        let emergingFrame = FloatingNoteLayout.emergingDragFrame(
             for: screenPoint,
             panelSize: panelSize,
             constraintFrame: screen.frame,
             progress: FloatingNoteLayout.dragProgress(from: dragAnchorFrame, to: screenPoint)
+        )
+        return NSRect(
+            x: emergingFrame.minX,
+            y: emergingFrame.maxY - panelSize.height,
+            width: panelSize.width,
+            height: panelSize.height
         )
     }
 

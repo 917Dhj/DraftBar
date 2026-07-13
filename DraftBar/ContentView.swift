@@ -27,6 +27,7 @@ final class FloatingNoteWindowState: ObservableObject {
 final class FloatingNoteVisualState: ObservableObject {
     @Published var isDraggingFromStatusItem = false
     @Published var dragProgress: CGFloat = 1
+    @Published var dragPanelSize = NSSize(width: 420, height: 520)
 }
 
 enum FloatingNoteLayout {
@@ -48,10 +49,7 @@ enum FloatingNoteLayout {
         let clampedProgress = min(max(progress, 0), 1)
         let easedProgress = smoothstep(clampedProgress)
         let seedSize = dragSeedSize
-        let currentSize = NSSize(
-            width: interpolate(from: seedSize.width, to: panelSize.width, progress: easedProgress),
-            height: interpolate(from: seedSize.height, to: panelSize.height, progress: easedProgress)
-        )
+        let currentSize = emergingDragSize(panelSize: panelSize, progress: clampedProgress)
         let cursorXOffset = interpolate(from: seedSize.width / 2, to: 32, progress: easedProgress)
         let cursorTopOffset = interpolate(from: seedSize.height / 2, to: 28, progress: easedProgress)
 
@@ -67,12 +65,11 @@ enum FloatingNoteLayout {
         )
     }
 
-    static func dragSeedFrame(from anchorFrame: NSRect) -> NSRect {
-        NSRect(
-            x: anchorFrame.midX - dragSeedSize.width / 2,
-            y: anchorFrame.midY - dragSeedSize.height / 2,
-            width: dragSeedSize.width,
-            height: dragSeedSize.height
+    static func emergingDragSize(panelSize: NSSize, progress: CGFloat) -> NSSize {
+        let easedProgress = smoothstep(min(max(progress, 0), 1))
+        return NSSize(
+            width: interpolate(from: dragSeedSize.width, to: panelSize.width, progress: easedProgress),
+            height: interpolate(from: dragSeedSize.height, to: panelSize.height, progress: easedProgress)
         )
     }
 
@@ -279,10 +276,37 @@ struct FloatingNoteView: View {
             : 24
     }
 
+    private var dragScale: CGSize {
+        guard visualState.isDraggingFromStatusItem else {
+            return CGSize(width: 1, height: 1)
+        }
+
+        let panelSize = visualState.dragPanelSize
+        let emergingSize = FloatingNoteLayout.emergingDragSize(
+            panelSize: panelSize,
+            progress: visualState.dragProgress
+        )
+        return CGSize(
+            width: emergingSize.width / panelSize.width,
+            height: emergingSize.height / panelSize.height
+        )
+    }
+
+    private var glassShape: RoundedRectangle {
+        RoundedRectangle(
+            cornerSize: CGSize(
+                width: cornerRadius / dragScale.width,
+                height: cornerRadius / dragScale.height
+            ),
+            style: .continuous
+        )
+    }
+
     var body: some View {
         ZStack {
             dragSeedIcon
                 .opacity(dragSeedOpacity)
+                .scaleEffect(x: 1 / dragScale.width, y: 1 / dragScale.height)
                 .allowsHitTesting(false)
 
             editorContent
@@ -296,12 +320,9 @@ struct FloatingNoteView: View {
             minHeight: visualState.isDraggingFromStatusItem ? 0 : 260,
             idealHeight: 520
         )
-        .glassEffect(
-            .regular,
-            in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .animation(.easeOut(duration: 0.08), value: visualState.dragProgress)
+        .glassEffect(.regular, in: glassShape)
+        .clipShape(glassShape)
+        .scaleEffect(x: dragScale.width, y: dragScale.height, anchor: .topLeading)
     }
 
     private var editorContent: some View {
