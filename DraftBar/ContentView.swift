@@ -582,7 +582,7 @@ final class ContrastLatexRenderer: LatexRenderer, @unchecked Sendable {
         let background = isDarkAppearance ? darkBackground : lightBackground
         let image = NSImage(size: size, flipped: false) { rect in
             background.setFill()
-            NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4).fill()
+            NSBezierPath(roundedRect: rect, xRadius: 12, yRadius: 12).fill()
             result.image.draw(
                 in: NSRect(
                     x: self.horizontalPadding,
