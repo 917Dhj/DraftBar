@@ -1,6 +1,24 @@
 {
-  "originHash" : "c8fb98d929174d77bada3cb68a4b0bc0eec20c0303fd34bcc3ca10880b925912",
+  "originHash" : "75a608be0c9121918a993bad5d3121f2a0805fdc23b3dec7487b7d7811a989e5",
   "pins" : [
+    {
+      "identity" : "highlighterswift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/smittytone/HighlighterSwift",
+      "state" : {
+        "revision" : "fe7aae9c9b31d3b296fd3d2dd575e1a207bb29e0",
+        "version" : "3.1.0"
+      }
+    },
+    {
+      "identity" : "swift-markdown-engine",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/nodes-app/swift-markdown-engine.git",
+      "state" : {
+        "revision" : "7d537d0646a6a3170a0779d4e08f6e951b378eb9",
+        "version" : "0.8.0"
+      }
+    },
     {
       "identity" : "swiftmath",
       "kind" : "remoteSourceControl",

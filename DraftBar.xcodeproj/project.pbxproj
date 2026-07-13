@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		1575522B2FC83A22004C0FC6 /* SwiftMath in Frameworks */ = {isa = PBXBuildFile; productRef = 1575522D2FC83A22004C0FC6 /* SwiftMath */; };
+		15A000012FD50000004C0FC6 /* MarkdownEngine in Frameworks */ = {isa = PBXBuildFile; productRef = 15A000052FD50000004C0FC6 /* MarkdownEngine */; };
+		15A000022FD50000004C0FC6 /* MarkdownEngineCodeBlocks in Frameworks */ = {isa = PBXBuildFile; productRef = 15A000062FD50000004C0FC6 /* MarkdownEngineCodeBlocks */; };
+		15A000032FD50000004C0FC6 /* MarkdownEngineLatex in Frameworks */ = {isa = PBXBuildFile; productRef = 15A000072FD50000004C0FC6 /* MarkdownEngineLatex */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +31,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				1575522B2FC83A22004C0FC6 /* SwiftMath in Frameworks */,
+				15A000012FD50000004C0FC6 /* MarkdownEngine in Frameworks */,
+				15A000022FD50000004C0FC6 /* MarkdownEngineCodeBlocks in Frameworks */,
+				15A000032FD50000004C0FC6 /* MarkdownEngineLatex in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +77,9 @@
 			name = DraftBar;
 			packageProductDependencies = (
 				1575522D2FC83A22004C0FC6 /* SwiftMath */,
+				15A000052FD50000004C0FC6 /* MarkdownEngine */,
+				15A000062FD50000004C0FC6 /* MarkdownEngineCodeBlocks */,
+				15A000072FD50000004C0FC6 /* MarkdownEngineLatex */,
 			);
 			productName = DraftBar;
 			productReference = 1575521D2FC83A21004C0FC6 /* DraftBar.app */;
@@ -102,6 +111,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				1575522C2FC83A22004C0FC6 /* XCRemoteSwiftPackageReference "SwiftMath" */,
+				15A000042FD50000004C0FC6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1575521E2FC83A21004C0FC6 /* Products */;
@@ -344,6 +354,14 @@
 				minimumVersion = 1.7.3;
 			};
 		};
+		15A000042FD50000004C0FC6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/nodes-app/swift-markdown-engine.git";
+			requirement = {
+				kind = exactVersion;
+				version = 0.8.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -351,6 +369,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 1575522C2FC83A22004C0FC6 /* XCRemoteSwiftPackageReference "SwiftMath" */;
 			productName = SwiftMath;
+		};
+		15A000052FD50000004C0FC6 /* MarkdownEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 15A000042FD50000004C0FC6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */;
+			productName = MarkdownEngine;
+		};
+		15A000062FD50000004C0FC6 /* MarkdownEngineCodeBlocks */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 15A000042FD50000004C0FC6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */;
+			productName = MarkdownEngineCodeBlocks;
+		};
+		15A000072FD50000004C0FC6 /* MarkdownEngineLatex */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 15A000042FD50000004C0FC6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */;
+			productName = MarkdownEngineLatex;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
