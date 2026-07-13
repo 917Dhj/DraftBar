@@ -456,8 +456,17 @@ struct WindowDragHandle: NSViewRepresentable {
 
 struct MarkdownTextView: View {
     private static let bodyFontSize: CGFloat = 17
-    private static let syntaxHighlighter = HighlighterSwiftBridge()
-    private static let latexRenderer = SwiftMathBridge()
+    private static let lightBlockBackground = NSColor(calibratedWhite: 0.88, alpha: 1)
+    private static let darkBlockBackground = NSColor(calibratedWhite: 0.22, alpha: 1)
+    private static let syntaxHighlighter = HighlighterSwiftBridge(
+        lightBackground: lightBlockBackground,
+        darkBackground: darkBlockBackground
+    )
+    private static let latexRenderer = ContrastLatexRenderer(
+        base: SwiftMathBridge(),
+        lightBackground: lightBlockBackground,
+        darkBackground: darkBlockBackground
+    )
 
     private var configuration: MarkdownEditorConfiguration {
         var configuration = MarkdownEditorConfiguration.default
@@ -540,6 +549,60 @@ private struct LocalMarkdownImageProvider: EmbeddedImageProvider {
 
     private func localURL(for path: String) -> URL? {
         MarkdownImageURLResolver.localURL(for: path, relativeTo: baseURL)
+    }
+}
+
+final class ContrastLatexRenderer: LatexRenderer, @unchecked Sendable {
+    private let base: any LatexRenderer
+    private let lightBackground: NSColor
+    private let darkBackground: NSColor
+    private let horizontalPadding: CGFloat
+    private let verticalPadding: CGFloat
+
+    init(
+        base: any LatexRenderer,
+        lightBackground: NSColor,
+        darkBackground: NSColor,
+        horizontalPadding: CGFloat = 5,
+        verticalPadding: CGFloat = 2
+    ) {
+        self.base = base
+        self.lightBackground = lightBackground
+        self.darkBackground = darkBackground
+        self.horizontalPadding = horizontalPadding
+        self.verticalPadding = verticalPadding
+    }
+
+    func render(latex: String, fontSize: CGFloat, theme: MarkdownEditorTheme) -> LatexRenderResult? {
+        guard let result = base.render(latex: latex, fontSize: fontSize, theme: theme) else { return nil }
+        let size = CGSize(
+            width: result.size.width + horizontalPadding * 2,
+            height: result.size.height + verticalPadding * 2
+        )
+        let background = isDarkAppearance ? darkBackground : lightBackground
+        let image = NSImage(size: size, flipped: false) { rect in
+            background.setFill()
+            NSBezierPath(roundedRect: rect, xRadius: 4, yRadius: 4).fill()
+            result.image.draw(
+                in: NSRect(
+                    x: self.horizontalPadding,
+                    y: self.verticalPadding,
+                    width: result.size.width,
+                    height: result.size.height
+                )
+            )
+            return true
+        }
+        return LatexRenderResult(
+            image: image,
+            size: size,
+            baselineOffset: result.baselineOffset + verticalPadding
+        )
+    }
+
+    private var isDarkAppearance: Bool {
+        let appearance = NSApp.keyWindow?.effectiveAppearance ?? NSApp.effectiveAppearance
+        return appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
 }
 
