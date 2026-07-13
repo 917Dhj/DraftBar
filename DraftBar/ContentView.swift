@@ -455,6 +455,7 @@ struct WindowDragHandle: NSViewRepresentable {
 }
 
 struct MarkdownTextView: View {
+    private static let bodyFontSize: CGFloat = 17
     private static let syntaxHighlighter = HighlighterSwiftBridge()
     private static let latexRenderer = SwiftMathBridge()
 
@@ -468,6 +469,10 @@ struct MarkdownTextView: View {
         configuration.safeAreaInsets = SafeAreaInsets(top: 54)
         configuration.textInsets = TextInsets(horizontal: 23, vertical: 4)
         configuration.scrollers = .vertical
+        configuration.lists = ListStyle(indentPerLevel: 8)
+        configuration.headings = HeadingStyle(
+            fontMultipliers: [1.7, 1.35, 1.1, 1.0, 0.9, 0.8]
+        )
         configuration.spellChecking = SpellCheckingPolicy(
             continuousSpellChecking: false,
             grammarChecking: false,
@@ -479,7 +484,7 @@ struct MarkdownTextView: View {
     private static let placeholder = NSAttributedString(
         string: "写点什么...",
         attributes: [
-            .font: NSFont.systemFont(ofSize: 15),
+            .font: NSFont.systemFont(ofSize: Self.bodyFontSize),
             .foregroundColor: NSColor.tertiaryLabelColor
         ]
     )
@@ -505,7 +510,7 @@ struct MarkdownTextView: View {
                 }
             ),
             configuration: configuration,
-            fontSize: 15,
+            fontSize: Self.bodyFontSize,
             documentId: "draftbar-single-draft",
             placeholder: Self.placeholder
         )
