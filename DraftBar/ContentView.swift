@@ -464,18 +464,39 @@ struct MarkdownTextView: View {
     )
 
     @Binding var text: String
+    @StateObject private var bindingAdapter: MarkdownTextBindingAdapter
     let focusRequestID: Int
     let imageBaseURL: URL
 
+    init(text: Binding<String>, focusRequestID: Int, imageBaseURL: URL) {
+        _text = text
+        _bindingAdapter = StateObject(wrappedValue: MarkdownTextBindingAdapter(text: text.wrappedValue))
+        self.focusRequestID = focusRequestID
+        self.imageBaseURL = imageBaseURL
+    }
+
     var body: some View {
         NativeTextViewWrapper(
-            text: $text,
+            text: Binding(
+                get: { bindingAdapter.editorText },
+                set: { newText in
+                    bindingAdapter.receiveEditorText(newText) { text = $0 }
+                }
+            ),
             configuration: configuration,
             fontSize: 15,
             documentId: "draftbar-single-draft",
             placeholder: Self.placeholder
         )
-        .background(MarkdownTextPreferencesBridge(focusRequestID: focusRequestID))
+        .background(
+            MarkdownTextPreferencesBridge(
+                focusRequestID: focusRequestID,
+                markedTextDidChange: bindingAdapter.setMarkedTextActive
+            )
+        )
+        .onChange(of: text) { _, newText in
+            bindingAdapter.receiveExternalText(newText)
+        }
     }
 }
 
@@ -492,37 +513,37 @@ private struct LocalMarkdownImageProvider: EmbeddedImageProvider {
     }
 
     private func localURL(for path: String) -> URL? {
-        if let url = URL(string: path, relativeTo: baseURL), url.isFileURL {
-            return url.standardizedFileURL
-        }
-        guard path.hasPrefix("/") else { return nil }
-        return URL(fileURLWithPath: path).standardizedFileURL
+        MarkdownImageURLResolver.localURL(for: path, relativeTo: baseURL)
     }
 }
 
 private struct MarkdownTextPreferencesBridge: NSViewRepresentable {
     let focusRequestID: Int
+    let markedTextDidChange: (Bool) -> Void
 
     func makeNSView(context: Context) -> ProbeView {
         let view = ProbeView()
         view.focusRequestID = focusRequestID
+        view.markedTextDidChange = markedTextDidChange
         return view
     }
 
     func updateNSView(_ nsView: ProbeView, context: Context) {
         nsView.focusRequestID = focusRequestID
+        nsView.markedTextDidChange = markedTextDidChange
         nsView.configureEditor()
     }
 
     final class ProbeView: NSView {
         var focusRequestID = 0
+        var markedTextDidChange: (Bool) -> Void = { _ in }
         private var appliedFocusRequestID = -1
         private weak var observedTextView: NSTextView?
-        private var selectionObserver: NSObjectProtocol?
+        private var editorObservers: [NSObjectProtocol] = []
 
         deinit {
-            if let selectionObserver {
-                NotificationCenter.default.removeObserver(selectionObserver)
+            for observer in editorObservers {
+                NotificationCenter.default.removeObserver(observer)
             }
         }
 
@@ -535,8 +556,9 @@ private struct MarkdownTextPreferencesBridge: NSViewRepresentable {
             DispatchQueue.main.async { [weak self] in
                 guard let self, let textView = self.findEditorTextView() else { return }
 
-                self.observeSelectionChanges(in: textView)
+                self.observeEditorChanges(in: textView)
                 self.applyTextPreferences(to: textView)
+                self.markedTextDidChange(textView.hasMarkedText())
 
                 guard self.appliedFocusRequestID != self.focusRequestID else { return }
                 guard let window = textView.window,
@@ -556,20 +578,28 @@ private struct MarkdownTextPreferencesBridge: NSViewRepresentable {
             return nil
         }
 
-        private func observeSelectionChanges(in textView: NSTextView) {
+        private func observeEditorChanges(in textView: NSTextView) {
             guard observedTextView !== textView else { return }
-            if let selectionObserver {
-                NotificationCenter.default.removeObserver(selectionObserver)
+            for observer in editorObservers {
+                NotificationCenter.default.removeObserver(observer)
             }
+            editorObservers.removeAll()
             observedTextView = textView
-            selectionObserver = NotificationCenter.default.addObserver(
-                forName: NSTextView.didChangeSelectionNotification,
-                object: textView,
-                queue: .main
-            ) { [weak self, weak textView] _ in
-                DispatchQueue.main.async {
-                    guard let self, let textView else { return }
-                    self.applyTextPreferences(to: textView)
+            let notifications = [
+                NSTextView.didChangeSelectionNotification,
+                NSText.didChangeNotification
+            ]
+            editorObservers = notifications.map { notification in
+                NotificationCenter.default.addObserver(
+                    forName: notification,
+                    object: textView,
+                    queue: .main
+                ) { [weak self, weak textView] _ in
+                    DispatchQueue.main.async {
+                        guard let self, let textView else { return }
+                        self.applyTextPreferences(to: textView)
+                        self.markedTextDidChange(textView.hasMarkedText())
+                    }
                 }
             }
         }
@@ -581,10 +611,7 @@ private struct MarkdownTextPreferencesBridge: NSViewRepresentable {
             textView.isAutomaticQuoteSubstitutionEnabled = false
             textView.isAutomaticDashSubstitutionEnabled = false
             textView.isAutomaticTextReplacementEnabled = false
-            textView.isAutomaticSpellingCorrectionEnabled = false
             textView.isAutomaticDataDetectionEnabled = false
-            textView.isContinuousSpellCheckingEnabled = false
-            textView.isGrammarCheckingEnabled = false
             textView.usesFindPanel = true
         }
 

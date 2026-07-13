@@ -14,6 +14,7 @@
 
 /* Begin PBXFileReference section */
 		1575521D2FC83A21004C0FC6 /* DraftBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DraftBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		15B000012FD60000004C0FC6 /* DraftBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DraftBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -22,9 +23,31 @@
 			path = DraftBar;
 			sourceTree = "<group>";
 		};
+		15B000022FD60000004C0FC6 /* DraftBarTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DraftBarTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
+/* Begin PBXContainerItemProxy section */
+		15B000082FD60000004C0FC6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 157552152FC83A21004C0FC6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1575521C2FC83A21004C0FC6;
+			remoteInfo = DraftBar;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFrameworksBuildPhase section */
+		15B000032FD60000004C0FC6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1575521A2FC83A21004C0FC6 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -42,6 +65,7 @@
 			isa = PBXGroup;
 			children = (
 				1575521F2FC83A21004C0FC6 /* DraftBar */,
+				15B000022FD60000004C0FC6 /* DraftBarTests */,
 				1575521E2FC83A21004C0FC6 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -50,6 +74,7 @@
 			isa = PBXGroup;
 			children = (
 				1575521D2FC83A21004C0FC6 /* DraftBar.app */,
+				15B000012FD60000004C0FC6 /* DraftBarTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -57,6 +82,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		15B000062FD60000004C0FC6 /* DraftBarTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 15B0000C2FD60000004C0FC6 /* Build configuration list for PBXNativeTarget "DraftBarTests" */;
+			buildPhases = (
+				15B000042FD60000004C0FC6 /* Sources */,
+				15B000032FD60000004C0FC6 /* Frameworks */,
+				15B000052FD60000004C0FC6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				15B000092FD60000004C0FC6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				15B000022FD60000004C0FC6 /* DraftBarTests */,
+			);
+			name = DraftBarTests;
+			packageProductDependencies = (
+			);
+			productName = DraftBarTests;
+			productReference = 15B000012FD60000004C0FC6 /* DraftBarTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		1575521C2FC83A21004C0FC6 /* DraftBar */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 157552282FC83A22004C0FC6 /* Build configuration list for PBXNativeTarget "DraftBar" */;
@@ -92,6 +140,10 @@
 				LastSwiftUpdateCheck = 2650;
 				LastUpgradeCheck = 2650;
 				TargetAttributes = {
+					15B000062FD60000004C0FC6 = {
+						CreatedOnToolsVersion = 26.5;
+						TestTargetID = 1575521C2FC83A21004C0FC6;
+					};
 					1575521C2FC83A21004C0FC6 = {
 						CreatedOnToolsVersion = 26.5;
 					};
@@ -115,11 +167,19 @@
 			projectRoot = "";
 			targets = (
 				1575521C2FC83A21004C0FC6 /* DraftBar */,
+				15B000062FD60000004C0FC6 /* DraftBarTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		15B000052FD60000004C0FC6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1575521B2FC83A21004C0FC6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -130,6 +190,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		15B000042FD60000004C0FC6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		157552192FC83A21004C0FC6 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -140,6 +207,36 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		15B0000A2FD60000004C0FC6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.917dhj.DraftBarTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DraftBar.app/Contents/MacOS/DraftBar";
+			};
+			name = Debug;
+		};
+		15B0000B2FD60000004C0FC6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.917dhj.DraftBarTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DraftBar.app/Contents/MacOS/DraftBar";
+			};
+			name = Release;
+		};
 		157552262FC83A22004C0FC6 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -321,6 +418,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		15B0000C2FD60000004C0FC6 /* Build configuration list for PBXNativeTarget "DraftBarTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				15B0000A2FD60000004C0FC6 /* Debug */,
+				15B0000B2FD60000004C0FC6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		157552182FC83A21004C0FC6 /* Build configuration list for PBXProject "DraftBar" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -340,6 +446,14 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin PBXTargetDependency section */
+		15B000092FD60000004C0FC6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1575521C2FC83A21004C0FC6 /* DraftBar */;
+			targetProxy = 15B000082FD60000004C0FC6 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCRemoteSwiftPackageReference section */
 		15A000042FD50000004C0FC6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */ = {
