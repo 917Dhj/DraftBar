@@ -462,7 +462,7 @@
 			repositoryURL = "https://github.com/917Dhj/swift-markdown-engine.git";
 			requirement = {
 				kind = revision;
-				revision = e7e4e6c277dba9cff5912f57b67453b696dd12b2;
+				revision = 5eec0b44045bc023874a7896e682151063122125;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
